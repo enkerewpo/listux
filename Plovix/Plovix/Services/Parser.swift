@@ -5,6 +5,13 @@ import SwiftSoup
 class Parser {
     private static let logger = Logger(subsystem: "com.wheatfox.plovix", category: "parser")
     
+    static func parseMessages(from html: String) -> [Message] {
+        logger.info("Starting to parse messages from HTML")
+        var messages: [Message] = []
+        
+        return messages
+    }
+
     static func parseMailingLists(from html: String) -> [(name: String, desc: String)] {
         logger.info("Starting to parse mailing lists from HTML")
         var lists: [(name: String, desc: String)] = []

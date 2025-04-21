@@ -113,23 +113,22 @@ struct MessageListView: View {
     let list: MailingList
     @State private var isLoading = false
     @State private var error: Error?
+    @State private var expandedMessages: Set<String> = []
     
     var body: some View {
-        List(list.messages) { message in
-            VStack(alignment: .leading) {
-                Text(message.subject)
-                    .font(.headline)
-                Text("By \(message.author)")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                Text(message.date, style: .date)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+        List {
+            ForEach(list.messages) { message in
+                MessageRow(message: message, expandedMessages: $expandedMessages)
             }
         }
         .navigationTitle(list.name)
         .task {
             await loadMessages()
+        }
+        .overlay {
+            if isLoading {
+                ProgressView()
+            }
         }
     }
     
@@ -139,19 +138,73 @@ struct MessageListView: View {
         
         do {
             let html = try await NetworkService.shared.fetchMailingList(list.name)
-            // TODO: Parse HTML and update messages
-            // This is a placeholder for the actual parsing logic
-            let message = Message(
-                subject: "Sample Message",
-                author: "John Doe",
-                date: Date(),
-                content: "Sample content",
-                url: "https://lore.kernel.org/sample"
-            )
-            list.messages.append(message)
+            let messages = Parser.parseMessages(from: html)
+            
+            // Clear existing messages
+            list.messages.removeAll()
+            
+            // Add new messages
+            for message in messages {
+                list.messages.append(message)
+            }
         } catch {
             self.error = error
         }
+    }
+}
+
+struct MessageRow: View {
+    let message: Message
+    @Binding var expandedMessages: Set<String>
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                if message.parent != nil {
+                    Image(systemName: "arrowshape.turn.up.left.fill")
+                        .foregroundColor(.secondary)
+                        .imageScale(.small)
+                }
+                
+                Text(message.subject)
+                    .font(.headline)
+                
+                Spacer()
+                
+                if !message.replies.isEmpty {
+                    Button(action: {
+                        if expandedMessages.contains(message.id) {
+                            expandedMessages.remove(message.id)
+                        } else {
+                            expandedMessages.insert(message.id)
+                        }
+                    }) {
+                        Image(systemName: expandedMessages.contains(message.id) ? "chevron.down" : "chevron.right")
+                    }
+                }
+            }
+            
+            HStack {
+                Text(message.author)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                
+                Text("•")
+                    .foregroundColor(.secondary)
+                
+                Text(message.date, style: .date)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            
+            if expandedMessages.contains(message.id) {
+                ForEach(message.replies) { reply in
+                    MessageRow(message: reply, expandedMessages: $expandedMessages)
+                        .padding(.leading, 20)
+                }
+            }
+        }
+        .padding(.vertical, 4)
     }
 }
 
