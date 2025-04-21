@@ -14,11 +14,23 @@ struct ContentView: View {
     @State private var selectedList: MailingList?
     @State private var isLoading = false
     @State private var error: Error?
+    @State private var searchText = ""
+    
+    var filteredLists: [MailingList] {
+        if searchText.isEmpty {
+            return mailingLists
+        } else {
+            return mailingLists.filter { list in
+                list.name.localizedCaseInsensitiveContains(searchText) ||
+                list.desc.localizedCaseInsensitiveContains(searchText)
+            }
+        }
+    }
     
     var body: some View {
         NavigationSplitView {
             List {
-                ForEach(mailingLists) { list in
+                ForEach(filteredLists) { list in
                     NavigationLink {
                         MessageListView(list: list)
                     } label: {
@@ -33,6 +45,7 @@ struct ContentView: View {
                 }
                 .onDelete(perform: deleteLists)
             }
+            .searchable(text: $searchText, prompt: "Search mailing lists")
             .navigationTitle("Linux Kernel Mailing Lists")
             .toolbar {
                 ToolbarItem {
