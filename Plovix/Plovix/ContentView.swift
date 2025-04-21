@@ -29,23 +29,27 @@ struct ContentView: View {
     
     var body: some View {
         NavigationSplitView {
-            List {
-                ForEach(filteredLists) { list in
-                    NavigationLink {
-                        MessageListView(list: list)
-                    } label: {
-                        VStack(alignment: .leading) {
-                            Text(list.name)
-                                .font(.headline)
-                            Text(list.desc)
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
+            VStack {
+                SearchBar(text: $searchText)
+                    .padding(.horizontal)
+                
+                List {
+                    ForEach(filteredLists) { list in
+                        NavigationLink {
+                            MessageListView(list: list)
+                        } label: {
+                            VStack(alignment: .leading) {
+                                Text(list.name)
+                                    .font(.headline)
+                                Text(list.desc)
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
                         }
                     }
+                    .onDelete(perform: deleteLists)
                 }
-                .onDelete(perform: deleteLists)
             }
-            .searchable(text: $searchText, prompt: "Search mailing lists")
             .navigationTitle("Linux Kernel Mailing Lists")
             .toolbar {
                 ToolbarItem {
@@ -104,6 +108,29 @@ struct ContentView: View {
         withAnimation {
             for index in offsets {
                 modelContext.delete(mailingLists[index])
+            }
+        }
+    }
+}
+
+struct SearchBar: View {
+    @Binding var text: String
+    
+    var body: some View {
+        HStack {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(.secondary)
+            
+            TextField("Search mailing lists", text: $text)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+            
+            if !text.isEmpty {
+                Button(action: {
+                    text = ""
+                }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.secondary)
+                }
             }
         }
     }
