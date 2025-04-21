@@ -2,4 +2,8 @@ plovix
 
 operating system development mailing list feed client
 
+goals:
+
+1. a https://lore.kernel.org/{channel} client for browsing linux kernel maillists topics and message rendering
+
 wheatfox 2025
