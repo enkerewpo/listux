@@ -11,10 +11,22 @@ import SwiftData
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \MailingList.name) private var mailingLists: [MailingList]
+    @Query private var preferences: [Preference]
     @State private var selectedList: MailingList?
     @State private var isLoading = false
     @State private var error: Error?
     @State private var searchText = ""
+    @State private var hoveredList: MailingList?
+    
+    private var preference: Preference {
+        if let existing = preferences.first {
+            return existing
+        } else {
+            let new = Preference()
+            modelContext.insert(new)
+            return new
+        }
+    }
     
     var filteredLists: [MailingList] {
         if searchText.isEmpty {
@@ -34,23 +46,24 @@ struct ContentView: View {
                     .padding(.horizontal)
                 
                 List {
-                    ForEach(filteredLists) { list in
-                        NavigationLink {
-                            MessageListView(list: list)
-                        } label: {
-                            VStack(alignment: .leading) {
-                                Text(list.name)
-                                    .font(.headline)
-                                Text(list.desc)
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
+                    // Favorite lists section
+                    if !filteredLists.filter({ preference.isFavorite($0) }).isEmpty {
+                        Section("Favorites") {
+                            ForEach(filteredLists.filter { preference.isFavorite($0) }) { list in
+                                MailingListRow(list: list, preference: preference, hoveredList: $hoveredList)
                             }
                         }
                     }
-                    .onDelete(perform: deleteLists)
+                    
+                    // All lists section
+                    Section {
+                        ForEach(filteredLists.filter { !preference.isFavorite($0) }) { list in
+                            MailingListRow(list: list, preference: preference, hoveredList: $hoveredList)
+                        }
+                    }
                 }
             }
-            .navigationTitle("Linux Kernel Mailing Lists")
+            .navigationTitle("Linux Kernel Lists")
             .toolbar {
                 ToolbarItem {
                     Button(action: refreshLists) {
@@ -185,7 +198,7 @@ struct MessageRow: View {
     @Binding var expandedMessages: Set<String>
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
                 if message.parent != nil {
                     Image(systemName: "arrowshape.turn.up.left.fill")
@@ -193,49 +206,61 @@ struct MessageRow: View {
                         .imageScale(.small)
                 }
                 
-                Text(message.subject)
-                    .font(.headline)
+                VStack(alignment: .leading) {
+                    Text(message.subject)
+                        .font(.headline)
+                    Text(message.timestamp, style: .date)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+            }
+        }
+        .padding(.vertical, 8)
+        .contentShape(Rectangle())
+    }
+}
+
+struct MailingListRow: View {
+    let list: MailingList
+    let preference: Preference
+    @Binding var hoveredList: MailingList?
+    
+    var body: some View {
+        NavigationLink {
+            MessageListView(list: list)
+        } label: {
+            HStack {
+                VStack(alignment: .leading) {
+                    Text(list.name)
+                        .font(.headline)
+                    Text(list.desc)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
                 
                 Spacer()
                 
-                if !message.replies.isEmpty {
+                if hoveredList == list || preference.isFavorite(list) {
                     Button(action: {
-                        if expandedMessages.contains(message.id) {
-                            expandedMessages.remove(message.id)
-                        } else {
-                            expandedMessages.insert(message.id)
-                        }
+                        preference.toggleFavorite(list)
                     }) {
-                        Image(systemName: expandedMessages.contains(message.id) ? "chevron.down" : "chevron.right")
+                        Image(systemName: preference.isFavorite(list) ? "star.fill" : "star")
+                            .foregroundColor(preference.isFavorite(list) ? .yellow : .secondary)
                     }
-                }
-            }
-            
-            HStack {
-                Text(message.author)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                
-                Text("•")
-                    .foregroundColor(.secondary)
-                
-                Text(message.date, style: .date)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-            
-            if expandedMessages.contains(message.id) {
-                ForEach(message.replies) { reply in
-                    MessageRow(message: reply, expandedMessages: $expandedMessages)
-                        .padding(.leading, 20)
+                    .buttonStyle(.plain)
                 }
             }
         }
-        .padding(.vertical, 4)
+        .onHover { isHovered in
+            hoveredList = isHovered ? list : nil
+        }
     }
 }
 
 #Preview {
     ContentView()
-        .modelContainer(for: MailingList.self, inMemory: true)
+        .modelContainer(for: [MailingList.self, Preference.self], inMemory: true)
 }
+
