@@ -7,6 +7,8 @@
 
 import SwiftUI
 import SwiftData
+import os
+import SwiftSoup
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
@@ -45,20 +47,20 @@ struct ContentView: View {
                 SearchBar(text: $searchText)
                     .padding(.horizontal)
                 
-                List {
-                    // Favorite lists section
+                List(selection: $selectedList) {
                     if !filteredLists.filter({ preference.isFavorite($0) }).isEmpty {
                         Section("Favorites") {
                             ForEach(filteredLists.filter { preference.isFavorite($0) }) { list in
                                 MailingListRow(list: list, preference: preference, hoveredList: $hoveredList)
+                                    .tag(list)
                             }
                         }
                     }
                     
-                    // All lists section
                     Section {
                         ForEach(filteredLists.filter { !preference.isFavorite($0) }) { list in
                             MailingListRow(list: list, preference: preference, hoveredList: $hoveredList)
+                                .tag(list)
                         }
                     }
                 }
@@ -77,8 +79,12 @@ struct ContentView: View {
                 }
             }
         } detail: {
-            Text("Select a mailing list")
-                .foregroundColor(.secondary)
+            if let selectedList = selectedList {
+                MessageListView(list: selectedList)
+            } else {
+                Text("Select a mailing list")
+                    .foregroundColor(.secondary)
+            }
         }
         .task {
             if mailingLists.isEmpty {
@@ -98,16 +104,13 @@ struct ContentView: View {
         defer { isLoading = false }
         
         do {
-            // Clear existing lists
             for list in mailingLists {
                 modelContext.delete(list)
             }
             
-            // Fetch and parse new lists
-            let html = try await NetworkService.shared.fetchMainPage()
-            let lists = Parser.parseMailingLists(from: html)
+            let html = try await NetworkService.shared.fetchHomePage()
+            let lists = Parser.parseListsFromHomePage(from: html)
             
-            // Create new MailingList objects
             for list in lists {
                 let mailingList = MailingList(name: list.name, desc: list.desc)
                 modelContext.insert(mailingList)
@@ -150,15 +153,15 @@ struct SearchBar: View {
 }
 
 struct MessageListView: View {
+    var logger = Logger(subsystem: "com.wheatfox.plovix", category: "MessageListView")
     let list: MailingList
     @State private var isLoading = false
     @State private var error: Error?
-    @State private var expandedMessages: Set<String> = []
     
     var body: some View {
         List {
             ForEach(list.messages) { message in
-                MessageRow(message: message, expandedMessages: $expandedMessages)
+                MessageTreeView(message: message, level: 0)
             }
         }
         .navigationTitle(list.name)
@@ -177,19 +180,68 @@ struct MessageListView: View {
         defer { isLoading = false }
         
         do {
-            let html = try await NetworkService.shared.fetchMailingList(list.name)
-            let messages = Parser.parseMessages(from: html)
-            
-            // Clear existing messages
+            let html = try await NetworkService.shared.fetchListPage(list.name)
+            let messages = Parser.parseMsgsFromListPage(from: html, listName: list.name)
             list.messages.removeAll()
-            
-            // Add new messages
             for message in messages {
+                message.mailingList = list
                 list.messages.append(message)
             }
         } catch {
             self.error = error
         }
+    }
+}
+
+struct MessageTreeView: View {
+    let message: Message
+    let level: Int
+    @State private var isExpanded = false
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 4) {
+                ForEach(0..<level, id: \.self) { _ in
+                    Rectangle()
+                        .frame(width: 1)
+                        .foregroundColor(.secondary.opacity(0.3))
+                }
+                
+                if !message.replies.isEmpty {
+                    Button {
+                        isExpanded.toggle()
+                    } label: {
+                        Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .opacity(0)
+                }
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(message.subject)
+                        .font(.headline)
+                    HStack {
+                        Text(message.timestamp, style: .date)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text("URL: \(message.content)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            
+            if isExpanded && !message.replies.isEmpty {
+                ForEach(message.replies) { reply in
+                    MessageTreeView(message: reply, level: level + 1)
+                }
+            }
+        }
+        .padding(.vertical, 4)
     }
 }
 

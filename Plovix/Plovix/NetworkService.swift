@@ -8,7 +8,7 @@ class NetworkService {
     
     private init() {}
     
-    func fetchMainPage() async throws -> String {
+    func fetchHomePage() async throws -> String {
         logger.info("Fetching main page from lore.kernel.org")
         let url = URL(string: baseURL)!
         let (data, response) = try await URLSession.shared.data(from: url)
@@ -17,11 +17,11 @@ class NetworkService {
         }
         let html = String(data: data, encoding: .utf8) ?? ""
         logger.info("Main page content length: \(html.count) characters")
-        logger.debug("Main page content (first 1000 chars):\n\(String(html.prefix(1000)))")
+        logger.debug("Main page content (first 500 chars):\n\(String(html.prefix(500)))")
         return html
     }
     
-    func fetchMailingList(_ listName: String) async throws -> String {
+    func fetchListPage(_ listName: String) async throws -> String {
         logger.info("Fetching mailing list: \(listName)")
         let url = URL(string: "\(baseURL)/\(listName)")!
         let (data, response) = try await URLSession.shared.data(from: url)
@@ -30,7 +30,7 @@ class NetworkService {
         }
         let html = String(data: data, encoding: .utf8) ?? ""
         logger.info("Mailing list content length: \(html.count) characters")
-        logger.debug("Mailing list content (first 1000 chars):\n\(String(html.prefix(1000)))")
+        logger.debug("Mailing list content (first 500 chars):\n\(String(html.prefix(500)))")
         return html
     }
     
@@ -43,7 +43,7 @@ class NetworkService {
         }
         let html = String(data: data, encoding: .utf8) ?? ""
         logger.info("Message content length: \(html.count) characters")
-        logger.debug("Message content (first 1000 chars):\n\(String(html.prefix(1000)))")
+        logger.debug("Message content (first 500 chars):\n\(String(html.prefix(500)))")
         return html
     }
 } 
