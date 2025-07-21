@@ -29,5 +29,13 @@ struct PlovixApp: App {
       ContentView()
     }
     .modelContainer(sharedModelContainer)
+    .commands {
+      CommandGroup(replacing: .appInfo) {
+        Button("About Listux") {
+          AboutPanel.show()
+        }
+        .keyboardShortcut("i", modifiers: [.command, .option])
+      }
+    }
   }
 }

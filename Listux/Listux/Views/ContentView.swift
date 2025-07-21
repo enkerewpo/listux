@@ -59,7 +59,7 @@ struct ContentView: View {
       MessageDetailView(selectedMessage: selectedMessage)
         .frame(minWidth: 280, maxWidth: 400)
     }
-    .onChange(of: selectedList) { _ in
+    .onChange(of: selectedList) {
       selectedMessage = nil
     }
     .task {

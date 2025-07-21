@@ -75,7 +75,12 @@ struct SidebarView: View {
                 .padding([.horizontal, .top], 8)
               // Filtered list
               List(selection: $selectedList) {
-                ForEach(mailingLists.filter { searchText.isEmpty || $0.name.localizedCaseInsensitiveContains(searchText) || $0.desc.localizedCaseInsensitiveContains(searchText) }, id: \ .id) { list in
+                ForEach(
+                  mailingLists.filter {
+                    searchText.isEmpty || $0.name.localizedCaseInsensitiveContains(searchText)
+                      || $0.desc.localizedCaseInsensitiveContains(searchText)
+                  }, id: \.id
+                ) { list in
                   HStack {
                     VStack(alignment: .leading, spacing: 0) {
                       Text(list.name)
@@ -113,7 +118,7 @@ struct SidebarView: View {
       .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     .frame(minWidth: 180, maxWidth: .infinity, maxHeight: .infinity)
-    .background(Color(NSColor.windowBackgroundColor))
+    .background(.ultraThinMaterial)
   }
 }
 

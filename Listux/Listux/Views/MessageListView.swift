@@ -14,11 +14,7 @@ struct MessageListView: View {
         List(selection: $selectedMessage) {
           ForEach(list.orderedMessages.sorted { $0.seqId < $1.seqId }) { message in
             HStack {
-              if let range = message.subject.range(of: #"\[.*?\]"#, options: .regularExpression) {
-                Text(message.subject)
-              } else {
-                Text(message.subject)
-              }
+              Text(message.subject)
               Spacer()
               Text(message.timestamp, style: .date)
                 .font(.caption2)
@@ -45,5 +41,7 @@ struct MessageListView: View {
 }
 
 #Preview {
-  MessageListView(selectedSidebarTab: .lists, selectedList: nil, selectedMessage: .constant(nil), isLoading: false)
+  MessageListView(
+    selectedSidebarTab: .lists, selectedList: nil, selectedMessage: .constant(nil), isLoading: false
+  )
 }
