@@ -14,7 +14,7 @@ struct ContentView: View {
   @Environment(\.modelContext) private var modelContext
   @Query(sort: \MailingList.name) private var mailingLists: [MailingList]
   @Query private var preferences: [Preference]
-  @State private var selectedList: MailingList?
+  @State private var selectedListID: UUID?
   @State private var isLoading = false
   @State private var error: Error?
   @State private var searchText = ""
@@ -46,21 +46,19 @@ struct ContentView: View {
       VStack {
         SearchBar(text: $searchText)
           .padding(.horizontal)
-
-        List(selection: $selectedList) {
+        List(selection: $selectedListID) {
           if !filteredLists.filter({ preference.isFavorite($0) }).isEmpty {
             Section("Favorites") {
-              ForEach(filteredLists.filter { preference.isFavorite($0) }) { list in
+              ForEach(filteredLists.filter { preference.isFavorite($0) }, id: \.id) { list in
                 MailingListRow(list: list, preference: preference, hoveredList: $hoveredList)
-                  .tag(list)
+                  .tag(list.id)
               }
             }
           }
-
           Section {
-            ForEach(filteredLists.filter { !preference.isFavorite($0) }) { list in
+            ForEach(filteredLists.filter { !preference.isFavorite($0) }, id: \.id) { list in
               MailingListRow(list: list, preference: preference, hoveredList: $hoveredList)
-                .tag(list)
+                .tag(list.id)
             }
           }
         }
@@ -79,11 +77,21 @@ struct ContentView: View {
         }
       }
     } detail: {
-      if let selectedList = selectedList {
-        MessageListView(list: selectedList)
+      if let selectedListID = selectedListID,
+        let selectedList = mailingLists.first(where: { $0.id == selectedListID })
+      {
+        MessageListView(listID: selectedListID, mailingLists: mailingLists)
+          .id(selectedListID)
       } else {
         Text("Select a mailing list")
           .foregroundColor(.secondary)
+      }
+    }
+    .onChange(of: selectedListID) { newValue in
+      if let id = newValue, let list = mailingLists.first(where: { $0.id == id }) {
+        print("Selected MailingList: id=\(list.id), name=\(list.name)")
+      } else {
+        print("Selected MailingList: nil")
       }
     }
     .task {
@@ -102,15 +110,12 @@ struct ContentView: View {
   private func loadMailingLists() async {
     isLoading = true
     defer { isLoading = false }
-
     do {
       for list in mailingLists {
         modelContext.delete(list)
       }
-
       let html = try await NetworkService.shared.fetchHomePage()
       let lists = Parser.parseListsFromHomePage(from: html)
-
       for list in lists {
         let mailingList = MailingList(name: list.name, desc: list.desc)
         modelContext.insert(mailingList)
@@ -153,36 +158,39 @@ struct SearchBar: View {
 }
 
 struct MessageListView: View {
-
+  let listID: UUID
+  let mailingLists: [MailingList]
   var logger = Logger(
     subsystem: Bundle.main.bundleIdentifier!, category: String(describing: MessageListView.self))
-
-  let list: MailingList
-
   @State private var isLoading = false
   @State private var error: Error?
 
   var body: some View {
-    List {
-      ForEach(list.messages) { message in
-        MessageTreeView(message: message, level: 0)
+    if let list = mailingLists.first(where: { $0.id == listID }) {
+      List {
+        ForEach(list.messages) { message in
+          MessageTreeView(message: message, level: 0)
+        }
       }
-    }
-    .navigationTitle(list.name)
-    .task {
-      await loadMessages()
-    }
-    .overlay {
-      if isLoading {
-        ProgressView()
+      .navigationTitle(list.name)
+      .task {
+        print("[MessageListView] .task triggered for list: \(list.name), id: \(list.id)")
+        await loadMessages(list: list)
       }
+      .overlay {
+        if isLoading {
+          ProgressView()
+        }
+      }
+    } else {
+      Text("Mailing list not found")
     }
   }
 
-  private func loadMessages() async {
+  private func loadMessages(list: MailingList) async {
+    print("[MessageListView] loadMessages called for list: \(list.name), id: \(list.id)")
     isLoading = true
     defer { isLoading = false }
-
     do {
       let html = try await NetworkService.shared.fetchListPage(list.name)
       let messages = Parser.parseMsgsFromListPage(from: html, listName: list.name)
@@ -284,29 +292,23 @@ struct MailingListRow: View {
   @Binding var hoveredList: MailingList?
 
   var body: some View {
-    NavigationLink {
-      MessageListView(list: list)
-    } label: {
-      HStack {
-        VStack(alignment: .leading) {
-          Text(list.name)
-            .font(.headline)
-          Text(list.desc)
-            .font(.subheadline)
-            .foregroundColor(.secondary)
+    HStack {
+      VStack(alignment: .leading) {
+        Text(list.name)
+          .font(.headline)
+        Text(list.desc)
+          .font(.subheadline)
+          .foregroundColor(.secondary)
+      }
+      Spacer()
+      if hoveredList == list || preference.isFavorite(list) {
+        Button(action: {
+          preference.toggleFavorite(list)
+        }) {
+          Image(systemName: preference.isFavorite(list) ? "star.fill" : "star")
+            .foregroundColor(preference.isFavorite(list) ? .yellow : .secondary)
         }
-
-        Spacer()
-
-        if hoveredList == list || preference.isFavorite(list) {
-          Button(action: {
-            preference.toggleFavorite(list)
-          }) {
-            Image(systemName: preference.isFavorite(list) ? "star.fill" : "star")
-              .foregroundColor(preference.isFavorite(list) ? .yellow : .secondary)
-          }
-          .buttonStyle(.plain)
-        }
+        .buttonStyle(.plain)
       }
     }
     .onHover { isHovered in
