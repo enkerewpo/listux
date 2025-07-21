@@ -59,7 +59,7 @@ struct SidebarView: View {
       }
       .padding(.vertical, 4)
       .frame(maxWidth: .infinity)
-      Divider()
+      // Divider()
       // Content area
       Group {
         switch selectedSidebarTab {
