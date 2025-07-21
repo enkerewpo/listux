@@ -1,4 +1,4 @@
-plovix
+listux
 
 operating system development mailing list feed client
 
@@ -12,6 +12,6 @@ dev:
 2. brew install xcode-build-server xcbeautify
 3. SweetPad: Generate Build Server Config
 
-log stream --predicate 'process == "Plovix"'
+log stream --predicate 'process == "Listux"'
 
 wheatfox 2025
