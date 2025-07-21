@@ -59,9 +59,10 @@ class Parser {
 
     do {
       let doc = try SwiftSoup.parse(html)
-      let links = try doc.select("a[href$=/T/#t]")
+      let links = try doc.select("a[href$=/T/#t], a[href$=/T/#u]")
 
       for link in links {
+        logger.debug("link=\(link)")
         let url = try link.attr("href")
         let subject = try link.text()
         let parent = try link.parent()?.parent()
@@ -94,25 +95,7 @@ class Parser {
         }
       }
 
-      rootMessages.sort { m1, m2 in
-        guard let idx1 = orderedMessages.firstIndex(of: m1),
-          let idx2 = orderedMessages.firstIndex(of: m2)
-        else {
-          return false
-        }
-        return idx1 < idx2
-      }
-
-      for message in rootMessages {
-        message.replies.sort { m1, m2 in
-          guard let idx1 = orderedMessages.firstIndex(of: m1),
-            let idx2 = orderedMessages.firstIndex(of: m2)
-          else {
-            return false
-          }
-          return idx1 < idx2
-        }
-      }
+      // Do not sort rootMessages or replies; keep original parsed order
     } catch {
       logger.error("Error parsing HTML: \(error.localizedDescription)")
     }

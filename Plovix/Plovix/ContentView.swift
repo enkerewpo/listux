@@ -168,7 +168,7 @@ struct MessageListView: View {
   var body: some View {
     if let list = mailingLists.first(where: { $0.id == listID }) {
       List {
-        ForEach(list.messages) { message in
+        ForEach(list.orderedMessages) { message in
           MessageTreeView(message: message, level: 0)
         }
       }
@@ -199,6 +199,7 @@ struct MessageListView: View {
         message.mailingList = list
         list.messages.append(message)
       }
+      list.orderedMessages = messages
     } catch {
       self.error = error
     }
@@ -211,49 +212,41 @@ struct MessageTreeView: View {
   @State private var isExpanded = false
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 4) {
-      HStack(spacing: 4) {
-        ForEach(0..<level, id: \.self) { _ in
-          Rectangle()
-            .frame(width: 1)
-            .foregroundColor(.secondary.opacity(0.3))
-        }
-
-        if !message.replies.isEmpty {
-          Button {
-            isExpanded.toggle()
-          } label: {
-            Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-              .font(.caption)
-          }
-          .buttonStyle(.plain)
-        } else {
-          Image(systemName: "chevron.right")
-            .font(.caption)
-            .opacity(0)
-        }
-
-        VStack(alignment: .leading, spacing: 2) {
-          Text(message.subject)
-            .font(.headline)
-          HStack {
-            Text(message.timestamp, style: .date)
-              .font(.caption)
-              .foregroundColor(.secondary)
-            Text("URL: \(message.content)")
-              .font(.caption)
-              .foregroundColor(.secondary)
-          }
-        }
+    HStack(spacing: 4) {
+      ForEach(0..<level, id: \.self) { _ in
+        Rectangle()
+          .frame(width: 1, height: 16)
+          .foregroundColor(.secondary.opacity(0.3))
       }
-
-      if isExpanded && !message.replies.isEmpty {
-        ForEach(message.replies) { reply in
-          MessageTreeView(message: reply, level: level + 1)
+      if !message.replies.isEmpty {
+        Button {
+          isExpanded.toggle()
+        } label: {
+          Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+            .font(.caption)
         }
+        .buttonStyle(.plain)
+      } else {
+        Image(systemName: "chevron.right")
+          .font(.caption)
+          .opacity(0)
+      }
+      Text(message.subject)
+        .font(.subheadline)
+        .lineLimit(1)
+      Text(message.timestamp, style: .date)
+        .font(.caption2)
+        .foregroundColor(.secondary)
+        .lineLimit(1)
+      Spacer()
+    }
+    .contentShape(Rectangle())
+    .padding(.vertical, 2)
+    if isExpanded && !message.replies.isEmpty {
+      ForEach(message.replies) { reply in
+        MessageTreeView(message: reply, level: level + 1)
       }
     }
-    .padding(.vertical, 4)
   }
 }
 
