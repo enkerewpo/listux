@@ -1,12 +1,13 @@
-listux
+# listux
 
 operating system development mailing list feed client
 
-goals:
+![image1.png](images/image1.png)
 
-1. a https://lore.kernel.org/{channel} client for browsing linux kernel maillists topics and message rendering
+a https://lore.kernel.org/{channel} client for browsing linux kernel maillists topics and message rendering
 
-dev:
+
+## development
 
 1. vscode: SweetPad, Swift
 2. brew install xcode-build-server xcbeautify
@@ -14,4 +15,6 @@ dev:
 
 log stream --predicate 'process == "Listux"'
 
-wheatfox 2025
+## credits
+
+wheatfox 2025 wheatfox17@icloud.com
