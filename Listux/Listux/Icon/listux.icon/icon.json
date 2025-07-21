@@ -6,6 +6,22 @@
       "layers" : [
         {
           "blend-mode" : "normal",
+          "fill" : {
+            "automatic-gradient" : "display-p3:0.29876,0.65315,0.96783,1.00000"
+          },
+          "glass" : true,
+          "image-name" : "email-8-svgrepo-com.svg",
+          "name" : "email-8-svgrepo-com",
+          "position" : {
+            "scale" : 0.3,
+            "translation-in-points" : [
+              -0.0390625,
+              75.3359375
+            ]
+          }
+        },
+        {
+          "blend-mode" : "normal",
           "fill" : "automatic",
           "glass" : true,
           "image-name" : "TuxFlat.svg",
@@ -20,7 +36,7 @@
           }
         }
       ],
-      "lighting" : "individual",
+      "lighting" : "combined",
       "shadow" : {
         "kind" : "neutral",
         "opacity" : 0.67
