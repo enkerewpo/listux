@@ -61,6 +61,7 @@ class Parser {
       let doc = try SwiftSoup.parse(html)
       let links = try doc.select("a[href$=/T/#t], a[href$=/T/#u]")
 
+      var seqId = 0 // Sequential id counter
       for link in links {
         logger.debug("link=\(link)")
         let url = try link.attr("href")
@@ -75,8 +76,10 @@ class Parser {
         let message = Message(
           subject: subject,
           content: url,
-          timestamp: dateFormatter.date(from: dateText) ?? Date()
+          timestamp: dateFormatter.date(from: dateText) ?? Date(),
+          seqId: seqId // Assign sequential id
         )
+        seqId += 1
 
         let messageId = url.split(separator: "/").first.map(String.init) ?? ""
         messageMap[messageId] = message
