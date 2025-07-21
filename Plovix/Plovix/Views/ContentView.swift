@@ -16,6 +16,9 @@ struct ContentView: View {
   @State private var selectedSidebarTab: SidebarTab = .lists
   @State private var selectedList: MailingList? = nil
   @State private var selectedMessage: Message? = nil
+  @State private var isLoadingMessages: Bool = false
+  @State private var isLoadingMailingLists: Bool = false
+  @State private var mailingListSearchText: String = ""
 
   var body: some View {
     NavigationSplitView {
@@ -23,16 +26,23 @@ struct ContentView: View {
         selectedSidebarTab: $selectedSidebarTab,
         selectedList: $selectedList,
         mailingLists: mailingLists,
+        isLoading: isLoadingMailingLists,
+        searchText: $mailingListSearchText,
         onSelectList: { list in
+          isLoadingMessages = true
           Task {
             do {
               let html = try await NetworkService.shared.fetchListPage(list.name)
               let messages = Parser.parseMsgsFromListPage(from: html, listName: list.name)
               await MainActor.run {
                 list.orderedMessages = messages
+                isLoadingMessages = false
               }
             } catch {
               print("Failed to load messages for list \(list.name): \(error)")
+              await MainActor.run {
+                isLoadingMessages = false
+              }
             }
           }
         }
@@ -41,7 +51,8 @@ struct ContentView: View {
     } content: {
       MessageListView(
         selectedSidebarTab: selectedSidebarTab, selectedList: selectedList,
-        selectedMessage: $selectedMessage
+        selectedMessage: $selectedMessage,
+        isLoading: isLoadingMessages
       )
       .frame(minWidth: 400, idealWidth: 1000)
     } detail: {
@@ -53,6 +64,7 @@ struct ContentView: View {
     }
     .task {
       if mailingLists.isEmpty {
+        isLoadingMailingLists = true
         do {
           let html = try await NetworkService.shared.fetchHomePage()
           let lists = Parser.parseListsFromHomePage(from: html)
@@ -60,8 +72,10 @@ struct ContentView: View {
             let mailingList = MailingList(name: list.name, desc: list.desc)
             modelContext.insert(mailingList)
           }
+          isLoadingMailingLists = false
         } catch {
           print("Failed to load mailing lists: \(error)")
+          isLoadingMailingLists = false
         }
       }
     }

@@ -4,9 +4,13 @@ struct MessageListView: View {
   var selectedSidebarTab: SidebarTab
   var selectedList: MailingList?
   @Binding var selectedMessage: Message?
+  var isLoading: Bool
   var body: some View {
     VStack {
-      if let list = selectedList, selectedSidebarTab == .lists {
+      if isLoading {
+        ProgressView("Loading messages...")
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
+      } else if let list = selectedList, selectedSidebarTab == .lists {
         List(selection: $selectedMessage) {
           ForEach(list.orderedMessages.sorted { $0.seqId < $1.seqId }) { message in
             HStack {
@@ -41,5 +45,5 @@ struct MessageListView: View {
 }
 
 #Preview {
-  MessageListView(selectedSidebarTab: .lists, selectedList: nil, selectedMessage: .constant(nil))
+  MessageListView(selectedSidebarTab: .lists, selectedList: nil, selectedMessage: .constant(nil), isLoading: false)
 }

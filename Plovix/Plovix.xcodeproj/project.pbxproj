@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 90;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -30,13 +30,11 @@
 /* Begin PBXCopyFilesBuildPhase section */
 		E6E5EA262D940C9000023C6A /* Embed Watch Content */ = {
 			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
 			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
-			dstSubfolderSpec = 16;
+			dstSubfolder = Product;
 			files = (
 			);
 			name = "Embed Watch Content";
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
 
@@ -65,40 +63,24 @@
 			path = Plovix;
 			sourceTree = "<group>";
 		};
-		E6E5E9A02D94052D00023C6A /* PlovixTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = PlovixTests;
-			sourceTree = "<group>";
-		};
-		E6E5E9AA2D94052D00023C6A /* PlovixUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = PlovixUITests;
-			sourceTree = "<group>";
-		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		E6E5E9862D94052C00023C6A /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 				E664191C2DB63F1F00F84D8F /* SwiftSoup in Frameworks */,
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 		E6E5E99A2D94052D00023C6A /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 		E6E5E9A42D94052D00023C6A /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
@@ -107,8 +89,6 @@
 			isa = PBXGroup;
 			children = (
 				E6E5E98B2D94052C00023C6A /* Plovix */,
-				E6E5E9A02D94052D00023C6A /* PlovixTests */,
-				E6E5E9AA2D94052D00023C6A /* PlovixUITests */,
 				E6E5E98A2D94052C00023C6A /* Products */,
 			);
 			sourceTree = "<group>";
@@ -137,8 +117,6 @@
 			);
 			buildRules = (
 			);
-			dependencies = (
-			);
 			fileSystemSynchronizedGroups = (
 				E6E5E98B2D94052C00023C6A /* Plovix */,
 			);
@@ -163,12 +141,7 @@
 			dependencies = (
 				E6E5E99F2D94052D00023C6A /* PBXTargetDependency */,
 			);
-			fileSystemSynchronizedGroups = (
-				E6E5E9A02D94052D00023C6A /* PlovixTests */,
-			);
 			name = PlovixTests;
-			packageProductDependencies = (
-			);
 			productName = PlovixTests;
 			productReference = E6E5E99D2D94052D00023C6A /* PlovixTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -186,12 +159,7 @@
 			dependencies = (
 				E6E5E9A92D94052D00023C6A /* PBXTargetDependency */,
 			);
-			fileSystemSynchronizedGroups = (
-				E6E5E9AA2D94052D00023C6A /* PlovixUITests */,
-			);
 			name = PlovixUITests;
-			packageProductDependencies = (
-			);
 			productName = PlovixUITests;
 			productReference = E6E5E9A72D94052D00023C6A /* PlovixUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -232,7 +200,7 @@
 			packageReferences = (
 				E664191A2DB63F1F00F84D8F /* XCRemoteSwiftPackageReference "SwiftSoup" */,
 			);
-			preferredProjectObjectVersion = 77;
+			preferredProjectObjectVersion = 90;
 			productRefGroup = E6E5E98A2D94052C00023C6A /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -247,48 +215,36 @@
 /* Begin PBXResourcesBuildPhase section */
 		E6E5E9872D94052C00023C6A /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 		E6E5E99B2D94052D00023C6A /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 		E6E5E9A52D94052D00023C6A /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		E6E5E9852D94052C00023C6A /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 		E6E5E9992D94052D00023C6A /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 		E6E5E9A32D94052D00023C6A /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
@@ -306,10 +262,10 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
-		E6E5E9B12D94052D00023C6A /* Debug */ = {
+		E6E5E9B12D94052D00023C6A /* Debug configuration for PBXNativeTarget "Plovix" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = plovix;
+				ASSETCATALOG_COMPILER_APPICON_NAME = plovix_1;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Plovix/Plovix.entitlements;
@@ -350,10 +306,10 @@
 			};
 			name = Debug;
 		};
-		E6E5E9B22D94052D00023C6A /* Release */ = {
+		E6E5E9B22D94052D00023C6A /* Release configuration for PBXNativeTarget "Plovix" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = plovix;
+				ASSETCATALOG_COMPILER_APPICON_NAME = plovix_1;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Plovix/Plovix.entitlements;
@@ -394,7 +350,7 @@
 			};
 			name = Release;
 		};
-		E6E5E9B32D94052D00023C6A /* Debug */ = {
+		E6E5E9B32D94052D00023C6A /* Debug configuration for PBXProject "Plovix" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -456,7 +412,7 @@
 			};
 			name = Debug;
 		};
-		E6E5E9B42D94052D00023C6A /* Release */ = {
+		E6E5E9B42D94052D00023C6A /* Release configuration for PBXProject "Plovix" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -512,7 +468,7 @@
 			};
 			name = Release;
 		};
-		E6E5E9B62D94052D00023C6A /* Debug */ = {
+		E6E5E9B62D94052D00023C6A /* Debug configuration for PBXNativeTarget "PlovixTests" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -535,7 +491,7 @@
 			};
 			name = Debug;
 		};
-		E6E5E9B72D94052D00023C6A /* Release */ = {
+		E6E5E9B72D94052D00023C6A /* Release configuration for PBXNativeTarget "PlovixTests" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -558,7 +514,7 @@
 			};
 			name = Release;
 		};
-		E6E5E9B92D94052D00023C6A /* Debug */ = {
+		E6E5E9B92D94052D00023C6A /* Debug configuration for PBXNativeTarget "PlovixUITests" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
@@ -580,7 +536,7 @@
 			};
 			name = Debug;
 		};
-		E6E5E9BA2D94052D00023C6A /* Release */ = {
+		E6E5E9BA2D94052D00023C6A /* Release configuration for PBXNativeTarget "PlovixUITests" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
@@ -608,37 +564,33 @@
 		E6E5E9842D94052C00023C6A /* Build configuration list for PBXProject "Plovix" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				E6E5E9B32D94052D00023C6A /* Debug */,
-				E6E5E9B42D94052D00023C6A /* Release */,
+				E6E5E9B32D94052D00023C6A /* Debug configuration for PBXProject "Plovix" */,
+				E6E5E9B42D94052D00023C6A /* Release configuration for PBXProject "Plovix" */,
 			);
-			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 		E6E5E9B02D94052D00023C6A /* Build configuration list for PBXNativeTarget "Plovix" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				E6E5E9B12D94052D00023C6A /* Debug */,
-				E6E5E9B22D94052D00023C6A /* Release */,
+				E6E5E9B12D94052D00023C6A /* Debug configuration for PBXNativeTarget "Plovix" */,
+				E6E5E9B22D94052D00023C6A /* Release configuration for PBXNativeTarget "Plovix" */,
 			);
-			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 		E6E5E9B52D94052D00023C6A /* Build configuration list for PBXNativeTarget "PlovixTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				E6E5E9B62D94052D00023C6A /* Debug */,
-				E6E5E9B72D94052D00023C6A /* Release */,
+				E6E5E9B62D94052D00023C6A /* Debug configuration for PBXNativeTarget "PlovixTests" */,
+				E6E5E9B72D94052D00023C6A /* Release configuration for PBXNativeTarget "PlovixTests" */,
 			);
-			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 		E6E5E9B82D94052D00023C6A /* Build configuration list for PBXNativeTarget "PlovixUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				E6E5E9B92D94052D00023C6A /* Debug */,
-				E6E5E9BA2D94052D00023C6A /* Release */,
+				E6E5E9B92D94052D00023C6A /* Debug configuration for PBXNativeTarget "PlovixUITests" */,
+				E6E5E9BA2D94052D00023C6A /* Release configuration for PBXNativeTarget "PlovixUITests" */,
 			);
-			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */

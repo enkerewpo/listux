@@ -44,6 +44,8 @@ struct SidebarView: View {
   @Binding var selectedSidebarTab: SidebarTab
   @Binding var selectedList: MailingList?
   var mailingLists: [MailingList]
+  var isLoading: Bool = false
+  @Binding var searchText: String
   var onSelectList: ((MailingList) -> Void)? = nil
   var body: some View {
     VStack(spacing: 0) {
@@ -62,31 +64,43 @@ struct SidebarView: View {
       Group {
         switch selectedSidebarTab {
         case .lists:
-          List(selection: $selectedList) {
-            ForEach(mailingLists, id: \.id) { list in
-              HStack {
-                VStack(alignment: .leading, spacing: 0) {
-                  Text(list.name)
-                    .font(.system(size: 13, weight: .medium))
-                    .lineLimit(1)
-                  Text(list.desc)
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
-                    .lineLimit(1)
+          if isLoading {
+            ProgressView("Loading lists...")
+              .frame(maxWidth: .infinity, maxHeight: .infinity)
+          } else {
+            VStack(spacing: 0) {
+              // Search bar
+              TextField("Search mailing lists", text: $searchText)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+                .padding([.horizontal, .top], 8)
+              // Filtered list
+              List(selection: $selectedList) {
+                ForEach(mailingLists.filter { searchText.isEmpty || $0.name.localizedCaseInsensitiveContains(searchText) || $0.desc.localizedCaseInsensitiveContains(searchText) }, id: \ .id) { list in
+                  HStack {
+                    VStack(alignment: .leading, spacing: 0) {
+                      Text(list.name)
+                        .font(.system(size: 13, weight: .medium))
+                        .lineLimit(1)
+                      Text(list.desc)
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                    }
+                    Spacer()
+                  }
+                  .padding(.vertical, 2)
+                  .background(selectedList == list ? Color.accentColor.opacity(0.2) : Color.clear)
+                  .cornerRadius(6)
+                  .onTapGesture {
+                    selectedList = list
+                    onSelectList?(list)
+                  }
                 }
-                Spacer()
               }
-              .padding(.vertical, 2)
-              .background(selectedList == list ? Color.accentColor.opacity(0.2) : Color.clear)
-              .cornerRadius(6)
-              .onTapGesture {
-                selectedList = list
-                onSelectList?(list)
-              }
+              .listStyle(.sidebar)
+              .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
           }
-          .listStyle(.sidebar)
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .favorites:
           Text("Favorites")
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -106,5 +120,8 @@ struct SidebarView: View {
 #Preview {
   SidebarView(
     selectedSidebarTab: .constant(.lists), selectedList: .constant(nil),
-    mailingLists: [MailingList(name: "linux-kernel", desc: "Linux Kernel Mailing List")])
+    mailingLists: [MailingList(name: "linux-kernel", desc: "Linux Kernel Mailing List")],
+    isLoading: false,
+    searchText: .constant("")
+  )
 }
