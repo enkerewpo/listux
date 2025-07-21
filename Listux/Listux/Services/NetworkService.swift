@@ -47,4 +47,16 @@ class NetworkService {
     // logger.debug("Message content (first 500 chars):\n\(String(html.prefix(500)))")
     return html
   }
+
+  /// Fetch raw HTML from an arbitrary URL string
+  func fetchMessageRaw(url: String) async throws -> String {
+    guard let u = URL(string: url) else { throw URLError(.badURL) }
+    let (data, response) = try await URLSession.shared.data(from: u)
+    if let httpResponse = response as? HTTPURLResponse {
+      logger.info("Raw fetch response status: \(httpResponse.statusCode)")
+    }
+    let html = String(data: data, encoding: .utf8) ?? ""
+    logger.info("Raw fetch content length: \(html.count) characters")
+    return html
+  }
 }
