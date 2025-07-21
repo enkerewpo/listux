@@ -6,4 +6,12 @@ goals:
 
 1. a https://lore.kernel.org/{channel} client for browsing linux kernel maillists topics and message rendering
 
+dev:
+
+1. vscode: SweetPad, Swift
+2. brew install xcode-build-server xcbeautify
+3. SweetPad: Generate Build Server Config
+
+log stream --predicate 'process == "Plovix"'
+
 wheatfox 2025
