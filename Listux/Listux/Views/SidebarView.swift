@@ -41,13 +41,13 @@ private struct SidebarTabButton: View {
         .help(tab.label)
     }
     .buttonStyle(.plain)
-            .onHover { hovering in
-          withAnimation(Animation.userPreferenceQuick) {
-            isHovered = hovering
-          }
-        }
-        .scaleEffect(isHovered ? AnimationConstants.hoverScale : 1.0)
-        .animation(Animation.userPreferenceQuick, value: isHovered)
+    .onHover { hovering in
+      withAnimation(Animation.userPreferenceQuick) {
+        isHovered = hovering
+      }
+    }
+    .scaleEffect(isHovered ? AnimationConstants.hoverScale : 1.0)
+    .animation(Animation.userPreferenceQuick, value: isHovered)
   }
 }
 
@@ -59,14 +59,14 @@ struct SidebarView: View {
   @Binding var searchText: String
   var onSelectList: ((MailingList) -> Void)? = nil
   @FocusState private var isSearchFocused: Bool
-  
+
   private var filteredLists: [MailingList] {
     if searchText.isEmpty {
       return mailingLists
     }
     return mailingLists.filter { list in
-      list.name.localizedCaseInsensitiveContains(searchText) ||
-      list.desc.localizedCaseInsensitiveContains(searchText)
+      list.name.localizedCaseInsensitiveContains(searchText)
+        || list.desc.localizedCaseInsensitiveContains(searchText)
     }
   }
 
@@ -92,69 +92,70 @@ struct SidebarView: View {
           Text(selectedSidebarTab.label)
             .font(.headline)
             .foregroundColor(.primary)
+            .background(Color(.windowBackgroundColor).opacity(0))
           Spacer()
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        .background(Color(.windowBackgroundColor).opacity(0.3))
-        
+        // .background(Color(.windowBackgroundColor).opacity(0.3))
+
         // Content
         Group {
           switch selectedSidebarTab {
-        case .lists:
-          if isLoading {
-            ProgressView("Loading lists...")
-              .frame(maxWidth: .infinity, maxHeight: .infinity)
-              .transition(AnimationConstants.fadeInOut)
-          } else {
-            VStack(spacing: 0) {
-              // Search bar with animation
-              TextField("Search mailing lists", text: $searchText)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
-                .padding([.horizontal, .top], 8)
-                .focused($isSearchFocused)
-                .scaleEffect(isSearchFocused ? AnimationConstants.selectedScale : 1.0)
-                .animation(Animation.userPreferenceQuick, value: isSearchFocused)
+          case .lists:
+            if isLoading {
+              ProgressView("Loading lists...")
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .transition(AnimationConstants.fadeInOut)
+            } else {
+              VStack(spacing: 0) {
+                // Search bar with animation
+                TextField("Search mailing lists", text: $searchText)
+                  .textFieldStyle(RoundedBorderTextFieldStyle())
+                  .padding([.horizontal, .top], 8)
+                  .focused($isSearchFocused)
+                  .scaleEffect(isSearchFocused ? AnimationConstants.selectedScale : 1.0)
+                  .animation(Animation.userPreferenceQuick, value: isSearchFocused)
 
-              // Filtered list
-              List(selection: $selectedList) {
-                ForEach(filteredLists, id: \.id) { list in
-                  MailingListItemView(
-                    list: list,
-                    isSelected: selectedList == list,
-                    onSelect: {
-                      withAnimation(Animation.userPreferenceQuick) {
-                        selectedList = list
+                // Filtered list
+                List(selection: $selectedList) {
+                  ForEach(filteredLists, id: \.id) { list in
+                    MailingListItemView(
+                      list: list,
+                      isSelected: selectedList == list,
+                      onSelect: {
+                        withAnimation(Animation.userPreferenceQuick) {
+                          selectedList = list
+                        }
+                        onSelectList?(list)
                       }
-                      onSelectList?(list)
-                    }
-                  )
+                    )
+                  }
                 }
+                .listStyle(.sidebar)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
               }
-              .listStyle(.sidebar)
-              .frame(maxWidth: .infinity, maxHeight: .infinity)
+              .transition(AnimationConstants.slideFromTrailing)
             }
-            .transition(AnimationConstants.slideFromTrailing)
-          }
-        case .favorites:
-          Text("Favorites")
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .transition(AnimationConstants.slideFromTrailing)
-        case .tags:
-          Text("Tags")
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .transition(AnimationConstants.slideFromTrailing)
-        case .settings:
-          SettingsView()
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .transition(AnimationConstants.slideFromTrailing)
+          case .favorites:
+            Text("Favorites")
+              .frame(maxWidth: .infinity, maxHeight: .infinity)
+              .transition(AnimationConstants.slideFromTrailing)
+          case .tags:
+            Text("Tags")
+              .frame(maxWidth: .infinity, maxHeight: .infinity)
+              .transition(AnimationConstants.slideFromTrailing)
+          case .settings:
+            SettingsView()
+              .frame(maxWidth: .infinity, maxHeight: .infinity)
+              .transition(AnimationConstants.slideFromTrailing)
           }
         }
         .animation(Animation.userPreference, value: selectedSidebarTab)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
       }
     }
-    .frame(minWidth: 180, idealWidth: 200, maxWidth: 400, maxHeight: .infinity)
+    .frame(minWidth: 240, idealWidth: 380, maxWidth: .infinity, maxHeight: .infinity)
     .background(.ultraThinMaterial)
   }
 }
@@ -163,28 +164,39 @@ struct MailingListItemView: View {
   let list: MailingList
   let isSelected: Bool
   let onSelect: () -> Void
-  
+  @State private var isHovered: Bool = false
+
   var body: some View {
     HStack {
-      VStack(alignment: .leading, spacing: 0) {
-        Text(list.name)
-          .font(.system(size: 13, weight: .medium))
-          .lineLimit(1)
-        Text(list.desc)
-          .font(.system(size: 11))
-          .foregroundColor(.secondary)
-          .lineLimit(1)
-      }
+      Text(list.name)
+        .font(.system(size: 12, weight: .regular))
+        .lineLimit(1)
       Spacer()
+      Text(list.desc)
+        .font(.system(size: 10))
+        .foregroundColor(.secondary)
+        .lineLimit(1)
     }
-    .padding(.vertical, 2)
+    .padding(.vertical, 1)
     .background(
-      RoundedRectangle(cornerRadius: 6)
-        .fill(isSelected ? Color.accentColor.opacity(0.2) : Color.clear)
-        .scaleEffect(isSelected ? AnimationConstants.selectedScale : 1.0)
+      RoundedRectangle(cornerRadius: 3)
+        .fill(
+          isSelected
+            ? Color.accentColor.opacity(0.2)
+            : (isHovered ? Color.primary.opacity(0.1) : Color.clear)
+        )
+        .scaleEffect(
+          isSelected
+            ? AnimationConstants.selectedScale : (isHovered ? AnimationConstants.hoverScale : 1.0))
     )
     .onTapGesture(perform: onSelect)
+    .onHover { hovering in
+      withAnimation(Animation.userPreferenceQuick) {
+        isHovered = hovering
+      }
+    }
     .animation(Animation.userPreferenceQuick, value: isSelected)
+    .animation(Animation.userPreferenceQuick, value: isHovered)
   }
 }
 

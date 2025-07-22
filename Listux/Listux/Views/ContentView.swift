@@ -96,7 +96,7 @@ struct ContentView: View {
           }
         }
       )
-      .frame(minWidth: 180, idealWidth: 300, maxWidth: .infinity)
+      .frame(minWidth: 240, idealWidth: 380, maxWidth: .infinity)
     } content: {
       VStack(spacing: 0) {
         HStack {
