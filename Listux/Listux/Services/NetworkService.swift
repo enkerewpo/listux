@@ -3,7 +3,7 @@ import os.log
 
 class NetworkService {
   static let shared = NetworkService()
-  private let baseURL = LORE_LINUX_BASE_URL
+  private let baseURL = LORE_LINUX_BASE_URL.value
   private let logger = Logger(
     subsystem: Bundle.main.bundleIdentifier!, category: String(describing: NetworkService.self))
 

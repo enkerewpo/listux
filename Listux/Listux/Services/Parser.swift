@@ -52,7 +52,7 @@ class Parser {
           timestamp: dateFormatter.date(from: dateText) ?? Date(),
           seqId: seqId,  // Assign sequential id
           // https://lore.kernel.org/loongarch/20250714070438.2399153-1-chenhuacai@loongson.cn
-          messageId: LORE_LINUX_BASE_URL + "/" + mailingList.name + "/" + url
+          messageId: LORE_LINUX_BASE_URL.value + "/" + mailingList.name + "/" + url
         )
         message.mailingList = mailingList
         seqId += 1

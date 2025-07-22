@@ -22,21 +22,30 @@ private struct SidebarTabButton: View {
   let tab: SidebarTab
   let isSelected: Bool
   let action: () -> Void
+  @State private var isHovered: Bool = false
+
   var body: some View {
     Button(action: action) {
       Image(systemName: tab.systemImage)
         .font(.system(size: 16, weight: .regular))
-        .foregroundColor(isSelected ? .accentColor : .secondary)
+        .foregroundColor(isSelected ? .accentColor : (isHovered ? .primary : .secondary))
         .padding(4)
         .frame(width: 28, height: 28)
         .background(
-          isSelected
-            ? AnyView(RoundedRectangle(cornerRadius: 6).fill(Color.accentColor.opacity(0.18)))
-            : AnyView(Color.clear)
+          RoundedRectangle(cornerRadius: 6)
+            .fill(isSelected ? Color.accentColor.opacity(0.18) : Color.clear)
+            .scaleEffect(isHovered ? 1.05 : 1.0)
         )
         .help(tab.label)
     }
     .buttonStyle(.plain)
+    .onHover { hovering in
+      withAnimation(AnimationConstants.quick) {
+        isHovered = hovering
+      }
+    }
+    .scaleEffect(isHovered ? AnimationConstants.hoverScale : 1.0)
+    .animation(AnimationConstants.quick, value: isHovered)
   }
 }
 
@@ -47,19 +56,23 @@ struct SidebarView: View {
   var isLoading: Bool = false
   @Binding var searchText: String
   var onSelectList: ((MailingList) -> Void)? = nil
+  @FocusState private var isSearchFocused: Bool
+
   var body: some View {
     VStack(spacing: 0) {
       // Compact Xcode-style icon row
       HStack(spacing: 6) {
         ForEach(SidebarTab.allCases, id: \.self) { tab in
           SidebarTabButton(tab: tab, isSelected: selectedSidebarTab == tab) {
-            selectedSidebarTab = tab
+            withAnimation(AnimationConstants.standard) {
+              selectedSidebarTab = tab
+            }
           }
         }
       }
       .padding(.vertical, 4)
       .frame(maxWidth: .infinity)
-      // Divider()
+
       // Content area
       Group {
         switch selectedSidebarTab {
@@ -67,12 +80,17 @@ struct SidebarView: View {
           if isLoading {
             ProgressView("Loading lists...")
               .frame(maxWidth: .infinity, maxHeight: .infinity)
+              .transition(AnimationConstants.fadeInOut)
           } else {
             VStack(spacing: 0) {
-              // Search bar
+              // Search bar with animation
               TextField("Search mailing lists", text: $searchText)
                 .textFieldStyle(RoundedBorderTextFieldStyle())
                 .padding([.horizontal, .top], 8)
+                .focused($isSearchFocused)
+                .scaleEffect(isSearchFocused ? AnimationConstants.selectedScale : 1.0)
+                .animation(AnimationConstants.quick, value: isSearchFocused)
+
               // Filtered list
               List(selection: $selectedList) {
                 ForEach(
@@ -94,27 +112,36 @@ struct SidebarView: View {
                     Spacer()
                   }
                   .padding(.vertical, 2)
-                  .background(selectedList == list ? Color.accentColor.opacity(0.2) : Color.clear)
-                  .cornerRadius(6)
+                  .background(
+                    RoundedRectangle(cornerRadius: 6)
+                      .fill(selectedList == list ? Color.accentColor.opacity(0.2) : Color.clear)
+                      .scaleEffect(selectedList == list ? AnimationConstants.selectedScale : 1.0)
+                  )
                   .onTapGesture {
-                    selectedList = list
+                    withAnimation(AnimationConstants.quick) {
+                      selectedList = list
+                    }
                     onSelectList?(list)
                   }
+                  .animation(AnimationConstants.quick, value: selectedList == list)
                 }
               }
               .listStyle(.sidebar)
               .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+            .transition(AnimationConstants.slideFromTrailing)
           }
         case .favorites:
           Text("Favorites")
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .transition(AnimationConstants.slideFromTrailing)
         case .tags:
           Text("Tags")
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .transition(AnimationConstants.slideFromTrailing)
         }
       }
-      .animation(.default, value: selectedSidebarTab)
+      .animation(AnimationConstants.standard, value: selectedSidebarTab)
       .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     .frame(minWidth: 180, maxWidth: .infinity, maxHeight: .infinity)

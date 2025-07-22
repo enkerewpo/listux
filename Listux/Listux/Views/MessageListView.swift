@@ -27,33 +27,45 @@ struct MessageListView: View {
               Text("No messages loaded")
                 .foregroundColor(.secondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .transition(AnimationConstants.fadeInOut)
             } else if rootMessages.isEmpty {
               Text("No root messages found (all messages have parents)")
                 .foregroundColor(.secondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .transition(AnimationConstants.fadeInOut)
             } else {
               ForEach(rootMessages.sorted { $0.seqId < $1.seqId }) { message in
                 MessageRowView(message: message, depth: 0, selectedMessage: $selectedMessage)
+                  .transition(AnimationConstants.slideFromLeading)
               }
             }
           }
           .listStyle(.inset)
+          .animation(AnimationConstants.standard, value: list.orderedMessages.count)
         } else {
           Text("Select a list to view messages")
             .foregroundColor(.secondary)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .transition(AnimationConstants.fadeInOut)
         }
       }
       // Overlay loading indicator
       if isLoading {
         Color.black.opacity(0.1)
           .ignoresSafeArea()
+          .transition(.opacity)
         ProgressView("Loading messages...")
           .padding(32)
           .background(RoundedRectangle(cornerRadius: 12).fill(Color(.windowBackgroundColor)))
           .shadow(radius: 8)
+          .transition(
+            .asymmetric(
+              insertion: .opacity.combined(with: .scale(scale: 0.8)),
+              removal: .opacity.combined(with: .scale(scale: 1.1))
+            ))
       }
     }
+    .animation(AnimationConstants.standard, value: isLoading)
   }
 }
 
@@ -61,6 +73,7 @@ struct MessageRowView: View {
   let message: Message
   let depth: Int
   @Binding var selectedMessage: Message?
+  @State private var isHovered: Bool = false
 
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
@@ -72,17 +85,22 @@ struct MessageRowView: View {
             Rectangle()
               .fill(Color.secondary.opacity(0.3))
               .frame(width: 2)
+              .transition(.opacity.combined(with: .scale(scale: 0.8)))
           }
         }
 
         // Expand/collapse button for messages with replies
         if !message.replies.isEmpty {
           Button(action: {
-            message.isExpanded.toggle()
+            withAnimation(AnimationConstants.standard) {
+              message.isExpanded.toggle()
+            }
           }) {
             Image(systemName: message.isExpanded ? "chevron.down" : "chevron.right")
               .font(.caption)
               .foregroundColor(.secondary)
+              .rotationEffect(.degrees(message.isExpanded ? 90 : 0))
+              .animation(AnimationConstants.quick, value: message.isExpanded)
           }
           .buttonStyle(.plain)
         } else {
@@ -114,25 +132,42 @@ struct MessageRowView: View {
 
         // Favorite button
         Button(action: {
-          message.isFavorite.toggle()
+          withAnimation(AnimationConstants.springQuick) {
+            message.isFavorite.toggle()
+          }
         }) {
           Image(systemName: message.isFavorite ? "star.fill" : "star")
             .foregroundColor(message.isFavorite ? .yellow : .secondary)
+            .scaleEffect(message.isFavorite ? AnimationConstants.favoriteScale : 1.0)
         }
         .buttonStyle(.plain)
+        .animation(AnimationConstants.springQuick, value: message.isFavorite)
       }
       .padding(.vertical, 4)
       .contentShape(Rectangle())
-      .background(selectedMessage?.id == message.id ? Color.accentColor.opacity(0.1) : Color.clear)
+      .background(
+        RoundedRectangle(cornerRadius: 6)
+          .fill(selectedMessage?.id == message.id ? Color.accentColor.opacity(0.1) : Color.clear)
+          .scaleEffect(isHovered ? AnimationConstants.selectedScale : 1.0)
+      )
       .onTapGesture {
-        selectedMessage = message
+        withAnimation(AnimationConstants.quick) {
+          selectedMessage = message
+        }
       }
+      .onHover { hovering in
+        withAnimation(AnimationConstants.quick) {
+          isHovered = hovering
+        }
+      }
+      .animation(AnimationConstants.quick, value: selectedMessage?.id == message.id)
 
       // Child messages (replies)
       if message.isExpanded && !message.replies.isEmpty {
         ForEach(message.replies.sorted { $0.seqId < $1.seqId }) { reply in
           MessageRowView(message: reply, depth: depth + 1, selectedMessage: $selectedMessage)
             .padding(.leading, 16)
+            .transition(AnimationConstants.slideFromLeading)
         }
       }
     }

@@ -45,7 +45,7 @@ struct ContentView: View {
           if url.hasPrefix("http") {
             fullUrl = url
           } else {
-            let base = LORE_LINUX_BASE_URL + "/"
+            let base = LORE_LINUX_BASE_URL.value + "/"
             fullUrl =
               base + list.name + "/" + url.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
           }
@@ -99,39 +99,39 @@ struct ContentView: View {
         HStack {
           if selectedList != nil {
             HStack(spacing: 24) {
-              Button(action: {
+              PaginationButton(
+                systemName: "chevron.left",
+                help: "Prev (Newer)",
+                isEnabled: messagePageLinks.prev != nil
+              ) {
                 if let prev = messagePageLinks.prev { onPageLinkTapped(prev) }
-              }) {
-                Image(systemName: "chevron.left")
-                  .imageScale(.large)
-                  .help("Prev (Newer)")
               }
-              .buttonStyle(.borderless)
-              .disabled(messagePageLinks.prev == nil)
-              Button(action: {
+
+              PaginationButton(
+                systemName: "arrow.left.to.line",
+                help: "First Page",
+                isEnabled: messagePageLinks.latest != nil
+              ) {
                 if let latest = messagePageLinks.latest { onPageLinkTapped(latest) }
-              }) {
-                Image(systemName: "arrow.left.to.line")
-                  .imageScale(.large)
-                  .help("First Page")
               }
-              .buttonStyle(.borderless)
-              .disabled(messagePageLinks.latest == nil)
+
               Text("Page \(currentPage)")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .frame(minWidth: 60)
-              Button(action: {
+                .transition(AnimationConstants.fadeInOut)
+                .animation(AnimationConstants.quick, value: currentPage)
+
+              PaginationButton(
+                systemName: "chevron.right",
+                help: "Next (Older)",
+                isEnabled: messagePageLinks.next != nil
+              ) {
                 if let next = messagePageLinks.next { onPageLinkTapped(next) }
-              }) {
-                Image(systemName: "chevron.right")
-                  .imageScale(.large)
-                  .help("Next (Older)")
               }
-              .buttonStyle(.borderless)
-              .disabled(messagePageLinks.next == nil)
             }
             .padding(.trailing, 16)
+            .transition(AnimationConstants.slideFromTop)
           }
         }
         .frame(maxWidth: .infinity)
@@ -150,14 +150,17 @@ struct ContentView: View {
         )
         .frame(minWidth: 500, idealWidth: 700, maxWidth: .infinity, maxHeight: .infinity)
       }
+      .animation(AnimationConstants.standard, value: selectedList != nil)
     } detail: {
       MessageDetailView(selectedMessage: selectedMessage)
         .frame(minWidth: 400, idealWidth: 600, maxWidth: .infinity)
     }
     .onChange(of: selectedList) {
-      selectedMessage = nil
-      messagePageLinks = (nil, nil, nil)
-      currentPage = 1
+      withAnimation(AnimationConstants.standard) {
+        selectedMessage = nil
+        messagePageLinks = (nil, nil, nil)
+        currentPage = 1
+      }
     }
     .task {
       if mailingLists.isEmpty {
@@ -176,5 +179,32 @@ struct ContentView: View {
         }
       }
     }
+  }
+}
+
+struct PaginationButton: View {
+  let systemName: String
+  let help: String
+  let isEnabled: Bool
+  let action: () -> Void
+
+  @State private var isHovered: Bool = false
+
+  var body: some View {
+    Button(action: action) {
+      Image(systemName: systemName)
+        .imageScale(.large)
+        .foregroundColor(isEnabled ? (isHovered ? .accentColor : .primary) : .secondary)
+        .scaleEffect(isHovered ? 1.1 : 1.0)
+        .help(help)
+    }
+    .buttonStyle(.borderless)
+    .disabled(!isEnabled)
+    .onHover { hovering in
+      withAnimation(AnimationConstants.quick) {
+        isHovered = hovering
+      }
+    }
+    .animation(AnimationConstants.quick, value: isHovered)
   }
 }
