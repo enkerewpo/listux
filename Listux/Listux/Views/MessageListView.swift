@@ -57,7 +57,11 @@ struct MessageListView: View {
           .transition(.opacity)
         ProgressView("Loading messages...")
           .padding(32)
-          .background(RoundedRectangle(cornerRadius: 12).fill(Color(.systemBackground)))
+          #if os(macOS)
+            .background(RoundedRectangle(cornerRadius: 12).fill(Color(.windowBackgroundColor)))
+          #else
+            .background(RoundedRectangle(cornerRadius: 12).fill(Color(.systemBackground)))
+          #endif
           .shadow(radius: 8)
           .transition(
             .asymmetric(

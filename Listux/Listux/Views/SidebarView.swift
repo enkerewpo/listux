@@ -92,12 +92,15 @@ struct SidebarView: View {
           Text(selectedSidebarTab.label)
             .font(.headline)
             .foregroundColor(.primary)
-            .background(Color(.systemBackground).opacity(0))
+            #if os(macOS)
+              .background(Color(.windowBackgroundColor).opacity(0))
+            #else
+              .background(Color(.systemBackground).opacity(0))
+            #endif
           Spacer()
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        // .background(Color(.systemBackground).opacity(0.3))
 
         // Content
         Group {

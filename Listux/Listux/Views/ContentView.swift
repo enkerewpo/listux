@@ -139,7 +139,11 @@ struct ContentView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
-        .background(Color(.systemBackground).opacity(0.95))
+        #if os(macOS)
+          .background(Color(.windowBackgroundColor).opacity(0.95))
+        #else
+          .background(Color(.systemBackground).opacity(0.95))
+        #endif
         Divider()
         MessageListView(
           selectedSidebarTab: selectedSidebarTab, selectedList: selectedList,

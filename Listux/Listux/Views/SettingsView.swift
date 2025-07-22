@@ -190,7 +190,11 @@ struct SettingsCard<Content: View>: View {
     .padding(16)
     .background(
       RoundedRectangle(cornerRadius: 12)
-        .fill(Color(.systemBackground))
+        #if os(macOS)
+          .fill(Color(.windowBackgroundColor))
+        #else
+          .fill(Color(.systemBackground))
+        #endif
         .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
     )
   }
@@ -210,7 +214,11 @@ struct SpeedButton: View {
         .padding(.vertical, 6)
         .background(
           RoundedRectangle(cornerRadius: 6)
-            .fill(isSelected ? Color.accentColor : Color(.systemBackground))
+            #if os(macOS)
+              .fill(isSelected ? Color.accentColor : Color(.windowBackgroundColor))
+            #else
+              .fill(isSelected ? Color.accentColor : Color(.systemBackground))
+            #endif
         )
         .foregroundColor(isSelected ? .white : .primary)
     }
