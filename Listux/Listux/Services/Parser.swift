@@ -7,14 +7,6 @@ class Parser {
   private static let logger = Logger(
     subsystem: Bundle.main.bundleIdentifier!, category: String(describing: Parser.self))
 
-  static func parseMsgsFromListPage(from html: String) -> [Message] {
-    logger.info("Starting to parse messages from HTML")
-    var messages: [Message] = []
-
-    return messages
-  }
-
-  /// Result of parsing a message list page, including messages and pagination links.
   struct MessagePageResult {
     var messages: [Message]
     /// URL for the next (older) page, if available
@@ -39,8 +31,10 @@ class Parser {
       let links = try doc.select("a[href$=/T/#t], a[href$=/T/#u]")
 
       var seqId = 0  // Sequential id counter
+      var previousMessage: Message? = nil
+
       for link in links {
-        logger.debug("link=\(link)")
+        // logger.debug("link=\(link)")
         let url = try link.attr("href")
         let subject = try link.text()
         let parent = try link.parent()?.parent()
@@ -54,7 +48,9 @@ class Parser {
           subject: subject,
           content: url,
           timestamp: dateFormatter.date(from: dateText) ?? Date(),
-          seqId: seqId  // Assign sequential id
+          seqId: seqId,  // Assign sequential id
+          // https://lore.kernel.org/loongarch/20250714070438.2399153-1-chenhuacai@loongson.cn
+          messageId: LORE_LINUX_BASE_URL + "/" + listName + "/" + url
         )
         seqId += 1
 
@@ -62,17 +58,28 @@ class Parser {
         messageMap[messageId] = message
         orderedMessages.append(message)
 
-        let parentText = try parent?.text() ?? ""
-        if parentText.prefix(10).contains("`") {
-          if let parentId = parentText.split(separator: "/").first.map(String.init),
-            let parentMessage = messageMap[parentId]
-          {
-            message.parent = parentMessage
-            parentMessage.replies.append(message)
+        // Check if the <a> element is preceded by "` " in the original HTML
+        let linkHtml = try link.outerHtml()
+        if let linkIndex = html.range(of: linkHtml)?.lowerBound {
+          let beforeLink = String(html[..<linkIndex])
+          if beforeLink.hasSuffix("` ") {
+            // This message is a reply to the previous message
+            if let prevMessage = previousMessage {
+              message.parent = prevMessage
+              prevMessage.replies.append(message)
+            } else {
+              rootMessages.append(message)
+            }
+          } else {
+            rootMessages.append(message)
           }
         } else {
           rootMessages.append(message)
         }
+
+        previousMessage = message
+        // dump message
+        logger.info("message=\(String(describing: message))")
       }
 
       // Parse pagination links: "next (older)", "prev (newer)", and "latest" if they exist
@@ -93,7 +100,8 @@ class Parser {
     }
 
     logger.debug("Parsed \(rootMessages.count) root messages for list \(listName)")
-    return MessagePageResult(messages: rootMessages, nextURL: nextURL, prevURL: prevURL, latestURL: latestURL)
+    return MessagePageResult(
+      messages: orderedMessages, nextURL: nextURL, prevURL: prevURL, latestURL: latestURL)
   }
 
   /// Parse the mailing list home page and return a list of (name, desc) tuples.
@@ -113,8 +121,10 @@ class Parser {
             if components.count >= 2 {
               var name = components[1]
               var desc = components[0]
-              name = name.replacingOccurrences(of: "*", with: "").trimmingCharacters(in: .whitespaces)
-              desc = desc.replacingOccurrences(of: "*", with: "").trimmingCharacters(in: .whitespaces)
+              name = name.replacingOccurrences(of: "*", with: "").trimmingCharacters(
+                in: .whitespaces)
+              desc = desc.replacingOccurrences(of: "*", with: "").trimmingCharacters(
+                in: .whitespaces)
               lists.append((name, desc))
             }
           }

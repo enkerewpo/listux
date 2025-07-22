@@ -3,7 +3,7 @@ import os.log
 
 class NetworkService {
   static let shared = NetworkService()
-  private let baseURL = "https://lore.kernel.org"
+  private let baseURL = LORE_LINUX_BASE_URL
   private let logger = Logger(
     subsystem: Bundle.main.bundleIdentifier!, category: String(describing: NetworkService.self))
 
@@ -48,7 +48,7 @@ class NetworkService {
     return html
   }
 
-  /// Fetch raw HTML from an arbitrary URL string
+  /// Fetch raw HTML from an arbitrary URL string, please make sure this is a message page
   func fetchMessageRaw(url: String) async throws -> String {
     guard let u = URL(string: url) else { throw URLError(.badURL) }
     let (data, response) = try await URLSession.shared.data(from: u)

@@ -15,6 +15,8 @@ a https://lore.kernel.org/{channel} client for browsing linux kernel maillists t
 
 log stream --predicate 'process == "Listux"'
 
+params reference: https://blog.kworkflow.org/the-lore.kernel.org-api/
+
 ## credits
 
 wheatfox 2025 wheatfox17@icloud.com

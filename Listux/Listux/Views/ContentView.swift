@@ -41,7 +41,7 @@ struct ContentView: View {
           if url.hasPrefix("http") {
             fullUrl = url
           } else {
-            let base = "https://lore.kernel.org/"
+            let base = LORE_LINUX_BASE_URL + "/"
             fullUrl = base + list.name + "/" + url.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
           }
           let html = try await NetworkService.shared.fetchMessageRaw(url: fullUrl)

@@ -3,6 +3,7 @@ import SwiftData
 
 @Model
 final class Preference {
+
   var favoriteLists: [MailingList] = []
   var lastViewedList: MailingList?
 

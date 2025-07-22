@@ -6,10 +6,10 @@ class AboutPanel {
     let version =
       Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
     let copyright = "Copyright © 2025 wheatfox <wheatfox17@icloud.com>"
-    let homepage = "https://github.com/enkerewpo/listux"
+    let homepage = GITHUB_HOMEPAGE
 
     let panel = NSPanel(
-      contentRect: NSRect(x: 0, y: 0, width: 340, height: 220),
+      contentRect: NSRect(x: 0, y: 0, width: 340, height: 240),
       styleMask: [.titled, .closable],
       backing: .buffered,
       defer: false
@@ -18,7 +18,7 @@ class AboutPanel {
     panel.isFloatingPanel = true
     panel.level = .floating
 
-    let contentView = NSView(frame: NSRect(x: 0, y: 0, width: 340, height: 220))
+    let contentView = NSView(frame: NSRect(x: 0, y: 0, width: 340, height: 240))
 
     if let icon = NSApp.applicationIconImage {
       let imageView = NSImageView(image: icon)
