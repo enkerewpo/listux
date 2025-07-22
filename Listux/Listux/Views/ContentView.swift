@@ -19,8 +19,12 @@ struct ContentView: View {
   @State private var isLoadingMessages: Bool = false
   @State private var isLoadingMailingLists: Bool = false
   @State private var mailingListSearchText: String = ""
-  @State private var mailingListPageLinks: (next: String?, prev: String?, latest: String?) = (nil, nil, nil)
-  @State private var messagePageLinks: (next: String?, prev: String?, latest: String?) = (nil, nil, nil)
+  @State private var mailingListPageLinks: (next: String?, prev: String?, latest: String?) = (
+    nil, nil, nil
+  )
+  @State private var messagePageLinks: (next: String?, prev: String?, latest: String?) = (
+    nil, nil, nil
+  )
   @State private var currentPage: Int = 1
 
   var body: some View {
@@ -42,7 +46,8 @@ struct ContentView: View {
             fullUrl = url
           } else {
             let base = LORE_LINUX_BASE_URL + "/"
-            fullUrl = base + list.name + "/" + url.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            fullUrl =
+              base + list.name + "/" + url.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
           }
           let html = try await NetworkService.shared.fetchMessageRaw(url: fullUrl)
           let result = Parser.parseMsgsFromListPage(from: html, mailingList: list)
@@ -88,7 +93,7 @@ struct ContentView: View {
           }
         }
       )
-      .frame(minWidth: 180)
+      .frame(minWidth: 180, idealWidth: 200, maxWidth: 300)
     } content: {
       VStack(spacing: 0) {
         HStack {
@@ -143,11 +148,11 @@ struct ContentView: View {
           currentPage: currentPage,
           onPageLinkTapped: onPageLinkTapped
         )
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(minWidth: 500, idealWidth: 700, maxWidth: .infinity, maxHeight: .infinity)
       }
     } detail: {
       MessageDetailView(selectedMessage: selectedMessage)
-        .frame(minWidth: 280, maxWidth: 400)
+        .frame(minWidth: 400, idealWidth: 600, maxWidth: .infinity)
     }
     .onChange(of: selectedList) {
       selectedMessage = nil

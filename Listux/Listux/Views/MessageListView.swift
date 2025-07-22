@@ -15,7 +15,7 @@ struct MessageListView: View {
   var currentPage: Int = 1
   /// Callback when a pagination button is tapped
   var onPageLinkTapped: ((String) -> Void)?
-  
+
   var body: some View {
     ZStack {
       VStack(spacing: 0) {
@@ -33,7 +33,7 @@ struct MessageListView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
               ForEach(rootMessages.sorted { $0.seqId < $1.seqId }) { message in
-                MessageRowView(message: message, depth: 0)
+                MessageRowView(message: message, depth: 0, selectedMessage: $selectedMessage)
               }
             }
           }
@@ -60,7 +60,8 @@ struct MessageListView: View {
 struct MessageRowView: View {
   let message: Message
   let depth: Int
-  
+  @Binding var selectedMessage: Message?
+
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
       // Main message row
@@ -73,7 +74,7 @@ struct MessageRowView: View {
               .frame(width: 2)
           }
         }
-        
+
         // Expand/collapse button for messages with replies
         if !message.replies.isEmpty {
           Button(action: {
@@ -90,27 +91,27 @@ struct MessageRowView: View {
             .fill(Color.clear)
             .frame(width: 12)
         }
-        
+
         // Message content
         HStack(alignment: .center, spacing: 4) {
           Text(message.subject)
             .font(.system(size: 12, weight: .regular))
-          
+
           Spacer(minLength: 8)
 
           Text(message.timestamp, style: .date)
             .font(.system(size: 8))
             .foregroundColor(.secondary)
-          
+
           // Text(message.messageId)
           //   .font(.system(size: 8))
           //   .foregroundColor(.secondary)
           //   .lineLimit(1)
           //   .truncationMode(.head)
         }
-        
+
         Spacer()
-        
+
         // Favorite button
         Button(action: {
           message.isFavorite.toggle()
@@ -122,11 +123,15 @@ struct MessageRowView: View {
       }
       .padding(.vertical, 4)
       .contentShape(Rectangle())
-      
+      .background(selectedMessage?.id == message.id ? Color.accentColor.opacity(0.1) : Color.clear)
+      .onTapGesture {
+        selectedMessage = message
+      }
+
       // Child messages (replies)
       if message.isExpanded && !message.replies.isEmpty {
         ForEach(message.replies.sorted { $0.seqId < $1.seqId }) { reply in
-          MessageRowView(message: reply, depth: depth + 1)
+          MessageRowView(message: reply, depth: depth + 1, selectedMessage: $selectedMessage)
             .padding(.leading, 16)
         }
       }
