@@ -45,7 +45,7 @@ struct ContentView: View {
             fullUrl = base + list.name + "/" + url.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
           }
           let html = try await NetworkService.shared.fetchMessageRaw(url: fullUrl)
-          let result = Parser.parseMsgsFromListPage(from: html, listName: list.name)
+          let result = Parser.parseMsgsFromListPage(from: html, mailingList: list)
           await MainActor.run {
             list.orderedMessages = result.messages
             messagePageLinks = (result.nextURL, result.prevURL, result.latestURL)
@@ -73,7 +73,7 @@ struct ContentView: View {
           Task {
             do {
               let html = try await NetworkService.shared.fetchListPage(list.name)
-              let result = Parser.parseMsgsFromListPage(from: html, listName: list.name)
+              let result = Parser.parseMsgsFromListPage(from: html, mailingList: list)
               await MainActor.run {
                 list.orderedMessages = result.messages
                 messagePageLinks = (result.nextURL, result.prevURL, result.latestURL)

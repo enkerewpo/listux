@@ -17,8 +17,10 @@ class Parser {
     var latestURL: String?
   }
 
-  static func parseMsgsFromListPage(from html: String, listName: String) -> MessagePageResult {
-    logger.debug("Parsing messages at list \(listName)")
+  static func parseMsgsFromListPage(from html: String, mailingList: MailingList)
+    -> MessagePageResult
+  {
+    logger.debug("Parsing messages at list \(mailingList.name)")
     var rootMessages: [Message] = []
     var messageMap: [String: Message] = [:]
     var orderedMessages: [Message] = []
@@ -31,13 +33,13 @@ class Parser {
       let links = try doc.select("a[href$=/T/#t], a[href$=/T/#u]")
 
       var seqId = 0  // Sequential id counter
-      var previousMessage: Message? = nil
+      var lastRootMessage: Message? = nil
 
       for link in links {
         // logger.debug("link=\(link)")
         let url = try link.attr("href")
         let subject = try link.text()
-        let parent = try link.parent()?.parent()
+        let parent = link.parent()
         let dateText = try parent?.text() ?? ""
 
         let dateFormatter = DateFormatter()
@@ -50,34 +52,54 @@ class Parser {
           timestamp: dateFormatter.date(from: dateText) ?? Date(),
           seqId: seqId,  // Assign sequential id
           // https://lore.kernel.org/loongarch/20250714070438.2399153-1-chenhuacai@loongson.cn
-          messageId: LORE_LINUX_BASE_URL + "/" + listName + "/" + url
+          messageId: LORE_LINUX_BASE_URL + "/" + mailingList.name + "/" + url
         )
+        message.mailingList = mailingList
         seqId += 1
 
         let messageId = url.split(separator: "/").first.map(String.init) ?? ""
         messageMap[messageId] = message
         orderedMessages.append(message)
 
-        // Check if the <a> element is preceded by "` " in the original HTML
-        let linkHtml = try link.outerHtml()
-        if let linkIndex = html.range(of: linkHtml)?.lowerBound {
-          let beforeLink = String(html[..<linkIndex])
-          if beforeLink.hasSuffix("` ") {
-            // This message is a reply to the previous message
-            if let prevMessage = previousMessage {
-              message.parent = prevMessage
-              prevMessage.replies.append(message)
-            } else {
-              rootMessages.append(message)
-            }
-          } else {
-            rootMessages.append(message)
-          }
-        } else {
-          rootMessages.append(message)
+        // write html_plain to file
+        let fileManager = FileManager.default
+        let currentDirectory = fileManager.currentDirectoryPath
+        let filePath = currentDirectory + "/html_plain.html"
+        do {
+          logger.info("writing html_plain to file: \(filePath)")
+          try html.write(toFile: filePath, atomically: true, encoding: .utf8)
+        } catch {
+          logger.error("Error writing html_plain to file: \(error.localizedDescription)")
         }
 
-        previousMessage = message
+        if let range = html.range(of: url) {
+          let startIndex = range.lowerBound
+          if startIndex >= html.index(html.startIndex, offsetBy: 20) {
+            let beforeIndex = html.index(startIndex, offsetBy: -20)
+            let prefix = html[beforeIndex..<startIndex]
+            logger.info("before=\(prefix)")
+            if prefix.contains("` ") {
+              message.parent = lastRootMessage
+              lastRootMessage?.replies.append(message)
+            } else {
+              rootMessages.append(message)
+              lastRootMessage = message
+            }
+          } else {
+            logger.info("before is not enough, trying to find from beginning")
+            let prefix = html[..<startIndex]
+            logger.info("prefix=\(prefix)")
+            if prefix.contains("` ") {
+              message.parent = lastRootMessage
+              lastRootMessage?.replies.append(message)
+            } else {
+              rootMessages.append(message)
+              lastRootMessage = message
+            }
+          }
+        } else {
+          logger.error("not found in original html, this should not happen")
+        }
         // dump message
         logger.info("message=\(String(describing: message))")
       }
@@ -99,7 +121,7 @@ class Parser {
       logger.error("Error parsing HTML: \(error.localizedDescription)")
     }
 
-    logger.debug("Parsed \(rootMessages.count) root messages for list \(listName)")
+    logger.debug("Parsed \(rootMessages.count) root messages for list \(mailingList.name)")
     return MessagePageResult(
       messages: orderedMessages, nextURL: nextURL, prevURL: prevURL, latestURL: latestURL)
   }

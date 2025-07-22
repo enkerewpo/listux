@@ -53,6 +53,6 @@ final class Message {
 extension Message: CustomStringConvertible {
   var description: String {
     return
-      "Message(subject: \(subject), content: \(content), timestamp: \(timestamp), parent: \(String(describing: parent)), replies: \(replies.count), mailingList: \(String(describing: mailingList)), isExpanded: \(isExpanded), seqId: \(seqId), isFavorite: \(isFavorite), messageId: \(messageId))"
+      "Message(subject: \(subject), content: \(content), timestamp: \(timestamp), parent: \(String(describing: parent?.messageId)), replies: \(replies.count), mailingList: \(String(describing: mailingList)), isExpanded: \(isExpanded), seqId: \(seqId), isFavorite: \(isFavorite), messageId: \(messageId))"
   }
 }

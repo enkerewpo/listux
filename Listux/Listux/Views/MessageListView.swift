@@ -92,18 +92,21 @@ struct MessageRowView: View {
         }
         
         // Message content
-        VStack(alignment: .leading, spacing: 2) {
+        HStack(alignment: .center, spacing: 4) {
           Text(message.subject)
-            .font(.system(size: 14, weight: .medium))
-            .lineLimit(2)
+            .font(.system(size: 12, weight: .regular))
           
-          Text(message.timestamp, style: .date)
-            .font(.caption2)
-            .foregroundColor(.secondary)
+          Spacer(minLength: 8)
 
-          Text(message.messageId)
-            .font(.caption2)
+          Text(message.timestamp, style: .date)
+            .font(.system(size: 8))
             .foregroundColor(.secondary)
+          
+          // Text(message.messageId)
+          //   .font(.system(size: 8))
+          //   .foregroundColor(.secondary)
+          //   .lineLimit(1)
+          //   .truncationMode(.head)
         }
         
         Spacer()
