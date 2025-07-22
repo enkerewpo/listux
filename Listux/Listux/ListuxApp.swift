@@ -36,6 +36,13 @@ struct PlovixApp: App {
         }
         .keyboardShortcut("i", modifiers: [.command, .option])
       }
+      
+      CommandGroup(after: .appInfo) {
+        Button("Settings") {
+          SettingsManager.shared.openSettings()
+        }
+        .keyboardShortcut(",", modifiers: [.command])
+      }
     }
   }
 }

@@ -27,6 +27,9 @@ struct ContentView: View {
   )
   @State private var currentPage: Int = 1
 
+  // Handle settings menu command
+  @State private var settingsManager = SettingsManager.shared
+
   var body: some View {
     // Define the pagination handler closure so it can be used in both the toolbox bar and MessageListView
     let onPageLinkTapped: (String) -> Void = { url in
@@ -93,7 +96,7 @@ struct ContentView: View {
           }
         }
       )
-      .frame(minWidth: 180, idealWidth: 200, maxWidth: 300)
+      .frame(minWidth: 180, idealWidth: 300, maxWidth: .infinity)
     } content: {
       VStack(spacing: 0) {
         HStack {
@@ -120,7 +123,7 @@ struct ContentView: View {
                 .foregroundColor(.secondary)
                 .frame(minWidth: 60)
                 .transition(AnimationConstants.fadeInOut)
-                .animation(AnimationConstants.quick, value: currentPage)
+                .animation(Animation.userPreferenceQuick, value: currentPage)
 
               PaginationButton(
                 systemName: "chevron.right",
@@ -150,16 +153,24 @@ struct ContentView: View {
         )
         .frame(minWidth: 500, idealWidth: 700, maxWidth: .infinity, maxHeight: .infinity)
       }
-      .animation(AnimationConstants.standard, value: selectedList != nil)
+      .animation(Animation.userPreference, value: selectedList != nil)
     } detail: {
       MessageDetailView(selectedMessage: selectedMessage)
         .frame(minWidth: 400, idealWidth: 600, maxWidth: .infinity)
     }
     .onChange(of: selectedList) {
-      withAnimation(AnimationConstants.standard) {
+      withAnimation(Animation.userPreference) {
         selectedMessage = nil
         messagePageLinks = (nil, nil, nil)
         currentPage = 1
+      }
+    }
+    .onChange(of: settingsManager.shouldOpenSettings) { _, newValue in
+      if newValue {
+        withAnimation(Animation.userPreference) {
+          selectedSidebarTab = .settings
+        }
+        settingsManager.shouldOpenSettings = false
       }
     }
     .task {
@@ -201,10 +212,10 @@ struct PaginationButton: View {
     .buttonStyle(.borderless)
     .disabled(!isEnabled)
     .onHover { hovering in
-      withAnimation(AnimationConstants.quick) {
+      withAnimation(Animation.userPreferenceQuick) {
         isHovered = hovering
       }
     }
-    .animation(AnimationConstants.quick, value: isHovered)
+    .animation(Animation.userPreferenceQuick, value: isHovered)
   }
 }

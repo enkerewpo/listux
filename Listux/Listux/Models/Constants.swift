@@ -40,7 +40,9 @@ struct AnimationConstants {
 
 // MARK: - Network Constants
 struct LORE_LINUX_BASE_URL {
-  static let value = "https://lore.kernel.org"
+  static var value: String {
+    return UserPreferences.shared.baseURL
+  }
 }
 
 let GITHUB_HOMEPAGE = "https://github.com/enkerewpo/listux"

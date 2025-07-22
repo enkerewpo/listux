@@ -1,12 +1,13 @@
 import SwiftUI
 
 enum SidebarTab: Hashable, CaseIterable {
-  case lists, favorites, tags
+  case lists, favorites, tags, settings
   var systemImage: String {
     switch self {
     case .lists: return "tray.full"
     case .favorites: return "star"
     case .tags: return "tag"
+    case .settings: return "gear"
     }
   }
   var label: String {
@@ -14,6 +15,7 @@ enum SidebarTab: Hashable, CaseIterable {
     case .lists: return "Lists"
     case .favorites: return "Favorites"
     case .tags: return "Tags"
+    case .settings: return "Settings"
     }
   }
 }
@@ -39,13 +41,13 @@ private struct SidebarTabButton: View {
         .help(tab.label)
     }
     .buttonStyle(.plain)
-    .onHover { hovering in
-      withAnimation(AnimationConstants.quick) {
-        isHovered = hovering
-      }
-    }
-    .scaleEffect(isHovered ? AnimationConstants.hoverScale : 1.0)
-    .animation(AnimationConstants.quick, value: isHovered)
+            .onHover { hovering in
+          withAnimation(Animation.userPreferenceQuick) {
+            isHovered = hovering
+          }
+        }
+        .scaleEffect(isHovered ? AnimationConstants.hoverScale : 1.0)
+        .animation(Animation.userPreferenceQuick, value: isHovered)
   }
 }
 
@@ -57,6 +59,16 @@ struct SidebarView: View {
   @Binding var searchText: String
   var onSelectList: ((MailingList) -> Void)? = nil
   @FocusState private var isSearchFocused: Bool
+  
+  private var filteredLists: [MailingList] {
+    if searchText.isEmpty {
+      return mailingLists
+    }
+    return mailingLists.filter { list in
+      list.name.localizedCaseInsensitiveContains(searchText) ||
+      list.desc.localizedCaseInsensitiveContains(searchText)
+    }
+  }
 
   var body: some View {
     VStack(spacing: 0) {
@@ -64,7 +76,7 @@ struct SidebarView: View {
       HStack(spacing: 6) {
         ForEach(SidebarTab.allCases, id: \.self) { tab in
           SidebarTabButton(tab: tab, isSelected: selectedSidebarTab == tab) {
-            withAnimation(AnimationConstants.standard) {
+            withAnimation(Animation.userPreference) {
               selectedSidebarTab = tab
             }
           }
@@ -74,8 +86,21 @@ struct SidebarView: View {
       .frame(maxWidth: .infinity)
 
       // Content area
-      Group {
-        switch selectedSidebarTab {
+      VStack(spacing: 0) {
+        // Section header
+        HStack {
+          Text(selectedSidebarTab.label)
+            .font(.headline)
+            .foregroundColor(.primary)
+          Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(Color(.windowBackgroundColor).opacity(0.3))
+        
+        // Content
+        Group {
+          switch selectedSidebarTab {
         case .lists:
           if isLoading {
             ProgressView("Loading lists...")
@@ -89,41 +114,21 @@ struct SidebarView: View {
                 .padding([.horizontal, .top], 8)
                 .focused($isSearchFocused)
                 .scaleEffect(isSearchFocused ? AnimationConstants.selectedScale : 1.0)
-                .animation(AnimationConstants.quick, value: isSearchFocused)
+                .animation(Animation.userPreferenceQuick, value: isSearchFocused)
 
               // Filtered list
               List(selection: $selectedList) {
-                ForEach(
-                  mailingLists.filter {
-                    searchText.isEmpty || $0.name.localizedCaseInsensitiveContains(searchText)
-                      || $0.desc.localizedCaseInsensitiveContains(searchText)
-                  }, id: \.id
-                ) { list in
-                  HStack {
-                    VStack(alignment: .leading, spacing: 0) {
-                      Text(list.name)
-                        .font(.system(size: 13, weight: .medium))
-                        .lineLimit(1)
-                      Text(list.desc)
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
+                ForEach(filteredLists, id: \.id) { list in
+                  MailingListItemView(
+                    list: list,
+                    isSelected: selectedList == list,
+                    onSelect: {
+                      withAnimation(Animation.userPreferenceQuick) {
+                        selectedList = list
+                      }
+                      onSelectList?(list)
                     }
-                    Spacer()
-                  }
-                  .padding(.vertical, 2)
-                  .background(
-                    RoundedRectangle(cornerRadius: 6)
-                      .fill(selectedList == list ? Color.accentColor.opacity(0.2) : Color.clear)
-                      .scaleEffect(selectedList == list ? AnimationConstants.selectedScale : 1.0)
                   )
-                  .onTapGesture {
-                    withAnimation(AnimationConstants.quick) {
-                      selectedList = list
-                    }
-                    onSelectList?(list)
-                  }
-                  .animation(AnimationConstants.quick, value: selectedList == list)
                 }
               }
               .listStyle(.sidebar)
@@ -139,13 +144,47 @@ struct SidebarView: View {
           Text("Tags")
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .transition(AnimationConstants.slideFromTrailing)
+        case .settings:
+          SettingsView()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .transition(AnimationConstants.slideFromTrailing)
+          }
         }
+        .animation(Animation.userPreference, value: selectedSidebarTab)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
       }
-      .animation(AnimationConstants.standard, value: selectedSidebarTab)
-      .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-    .frame(minWidth: 180, maxWidth: .infinity, maxHeight: .infinity)
+    .frame(minWidth: 180, idealWidth: 200, maxWidth: 400, maxHeight: .infinity)
     .background(.ultraThinMaterial)
+  }
+}
+
+struct MailingListItemView: View {
+  let list: MailingList
+  let isSelected: Bool
+  let onSelect: () -> Void
+  
+  var body: some View {
+    HStack {
+      VStack(alignment: .leading, spacing: 0) {
+        Text(list.name)
+          .font(.system(size: 13, weight: .medium))
+          .lineLimit(1)
+        Text(list.desc)
+          .font(.system(size: 11))
+          .foregroundColor(.secondary)
+          .lineLimit(1)
+      }
+      Spacer()
+    }
+    .padding(.vertical, 2)
+    .background(
+      RoundedRectangle(cornerRadius: 6)
+        .fill(isSelected ? Color.accentColor.opacity(0.2) : Color.clear)
+        .scaleEffect(isSelected ? AnimationConstants.selectedScale : 1.0)
+    )
+    .onTapGesture(perform: onSelect)
+    .animation(Animation.userPreferenceQuick, value: isSelected)
   }
 }
 
