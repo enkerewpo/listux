@@ -41,6 +41,7 @@ struct MessageListView: View {
             }
           }
           .listStyle(.inset)
+          .frame(maxWidth: .infinity)
           .animation(AnimationConstants.standard, value: list.orderedMessages.count)
         } else {
           Text("Select a list to view messages")
@@ -56,7 +57,7 @@ struct MessageListView: View {
           .transition(.opacity)
         ProgressView("Loading messages...")
           .padding(32)
-          .background(RoundedRectangle(cornerRadius: 12).fill(Color(.windowBackgroundColor)))
+          .background(RoundedRectangle(cornerRadius: 12).fill(Color(.systemBackground)))
           .shadow(radius: 8)
           .transition(
             .asymmetric(
@@ -78,10 +79,10 @@ struct MessageRowView: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
       // Main message row
-      HStack {
+      HStack(alignment: .center, spacing: 0) {
         // Indentation for hierarchy
         HStack(spacing: 4) {
-          ForEach(0..<depth, id: \.self) { _ in
+          ForEach(0..<min(depth, 6), id: \.self) { _ in
             Rectangle()
               .fill(Color.secondary.opacity(0.3))
               .frame(width: 2)
@@ -161,12 +162,13 @@ struct MessageRowView: View {
         }
       }
       .animation(AnimationConstants.quick, value: selectedMessage?.id == message.id)
+      .frame(maxWidth: .infinity, alignment: .leading)
 
       // Child messages (replies)
       if message.isExpanded && !message.replies.isEmpty {
         ForEach(message.replies.sorted { $0.seqId < $1.seqId }) { reply in
           MessageRowView(message: reply, depth: depth + 1, selectedMessage: $selectedMessage)
-            .padding(.leading, 16)
+            .padding(.leading, CGFloat(min(depth + 1, 6)) * 16)
             .transition(AnimationConstants.slideFromLeading)
         }
       }

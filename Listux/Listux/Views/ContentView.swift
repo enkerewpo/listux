@@ -139,7 +139,7 @@ struct ContentView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
-        .background(Color(.windowBackgroundColor).opacity(0.95))
+        .background(Color(.systemBackground).opacity(0.95))
         Divider()
         MessageListView(
           selectedSidebarTab: selectedSidebarTab, selectedList: selectedList,
@@ -151,7 +151,7 @@ struct ContentView: View {
           currentPage: currentPage,
           onPageLinkTapped: onPageLinkTapped
         )
-        .frame(minWidth: 500, idealWidth: 700, maxWidth: .infinity, maxHeight: .infinity)
+        .frame(minWidth: 300, idealWidth: 700, maxWidth: .infinity, maxHeight: .infinity)
       }
       .animation(Animation.userPreference, value: selectedList != nil)
     } detail: {

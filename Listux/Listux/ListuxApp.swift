@@ -29,20 +29,22 @@ struct PlovixApp: App {
       ContentView()
     }
     .modelContainer(sharedModelContainer)
-    .commands {
-      CommandGroup(replacing: .appInfo) {
-        Button("About Listux") {
-          AboutPanel.show()
+    #if os(macOS)
+      .commands {
+        CommandGroup(replacing: .appInfo) {
+          Button("About Listux") {
+            AboutPanel.show()
+          }
+          .keyboardShortcut("i", modifiers: [.command, .option])
         }
-        .keyboardShortcut("i", modifiers: [.command, .option])
-      }
-      
-      CommandGroup(after: .appInfo) {
-        Button("Settings") {
-          SettingsManager.shared.openSettings()
+
+        CommandGroup(after: .appInfo) {
+          Button("Settings") {
+            SettingsManager.shared.openSettings()
+          }
+          .keyboardShortcut(",", modifiers: [.command])
         }
-        .keyboardShortcut(",", modifiers: [.command])
       }
-    }
+    #endif
   }
 }
