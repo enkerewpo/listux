@@ -2,10 +2,11 @@
 
 operating system development mailing list feed client
 
+work in progress
+
 ![image1.png](images/image1.png)
 
 a https://lore.kernel.org/{channel} client for browsing linux kernel maillists topics and message rendering
-
 
 ## development
 
