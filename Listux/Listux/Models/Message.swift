@@ -12,12 +12,11 @@ final class Message {
   @Relationship(inverse: \MailingList.messages) var mailingList: MailingList?
   var isExpanded: Bool = false
   var seqId: Int = 0
-  var isFavorite: Bool = false
   var messageId: String = ""
 
   init(
     subject: String, content: String, timestamp: Date, parent: Message? = nil,
-    seqId: Int = 0, isFavorite: Bool = false, messageId: String = ""
+    seqId: Int = 0, messageId: String = ""
   ) {
     self.subject = subject
     self.content = content
@@ -25,7 +24,6 @@ final class Message {
     self.parent = parent
     self.replies = []
     self.seqId = seqId
-    self.isFavorite = isFavorite
     self.messageId = messageId
   }
 
@@ -53,6 +51,6 @@ final class Message {
 extension Message: CustomStringConvertible {
   var description: String {
     return
-      "Message(subject: \(subject), content: \(content), timestamp: \(timestamp), parent: \(String(describing: parent?.messageId)), replies: \(replies.count), mailingList: \(String(describing: mailingList)), isExpanded: \(isExpanded), seqId: \(seqId), isFavorite: \(isFavorite), messageId: \(messageId))"
+      "Message(subject: \(subject), content: \(content), timestamp: \(timestamp), parent: \(String(describing: parent?.messageId)), replies: \(replies.count), mailingList: \(String(describing: mailingList)), isExpanded: \(isExpanded), seqId: \(seqId), messageId: \(messageId))"
   }
 }

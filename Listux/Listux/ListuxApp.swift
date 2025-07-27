@@ -1,6 +1,6 @@
 //
-//  PlovixApp.swift
-//  Plovix
+//  ListuxApp.swift
+//  Listux
 //
 //  Created by Mr wheatfox on 2025/3/26.
 //
@@ -9,13 +9,14 @@ import SwiftData
 import SwiftUI
 
 @main
-struct PlovixApp: App {
+struct ListuxApp: App {
   var sharedModelContainer: ModelContainer = {
     let schema = Schema([
       MailingList.self,
       Message.self,
+      Preference.self,
     ])
-    let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+    let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
     do {
       return try ModelContainer(for: schema, configurations: [modelConfiguration])

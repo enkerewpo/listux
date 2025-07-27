@@ -1,10 +1,28 @@
 import SwiftUI
+import SwiftData
 
 struct MessageDetailView: View {
   var selectedMessage: Message?
   @State private var messageHtml: String = ""
   @State private var isLoadingHtml: Bool = false
   @State private var isFavoriteAnimating: Bool = false
+  @Environment(\.modelContext) private var modelContext
+  @Query private var preferences: [Preference]
+  
+  private var preference: Preference {
+    if let existing = preferences.first {
+      return existing
+    } else {
+      let new = Preference()
+      modelContext.insert(new)
+      return new
+    }
+  }
+  
+  private var isFavorite: Bool {
+    guard let message = selectedMessage else { return false }
+    return preference.isFavoriteMessage(message.messageId)
+  }
 
   var body: some View {
     ScrollView {
@@ -18,7 +36,7 @@ struct MessageDetailView: View {
             Spacer()
             Button(action: {
               withAnimation(AnimationConstants.springQuick) {
-                msg.isFavorite.toggle()
+                preference.toggleFavoriteMessage(msg.messageId)
                 isFavoriteAnimating = true
               }
               // Reset animation state after animation completes
@@ -26,13 +44,13 @@ struct MessageDetailView: View {
                 isFavoriteAnimating = false
               }
             }) {
-              Image(systemName: msg.isFavorite ? "star.fill" : "star")
-                .foregroundColor(msg.isFavorite ? .yellow : .secondary)
+              Image(systemName: isFavorite ? "star.fill" : "star")
+                .foregroundColor(isFavorite ? .yellow : .secondary)
                 .scaleEffect(isFavoriteAnimating ? AnimationConstants.favoriteAnimationScale : 1.0)
                 .rotationEffect(.degrees(isFavoriteAnimating ? 360 : 0))
             }
             .buttonStyle(.plain)
-            .animation(AnimationConstants.springQuick, value: msg.isFavorite)
+            .animation(AnimationConstants.springQuick, value: isFavorite)
           }
           .transition(AnimationConstants.slideFromTop)
 

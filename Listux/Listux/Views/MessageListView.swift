@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 struct MessageListView: View {
   var selectedSidebarTab: SidebarTab
@@ -15,6 +16,18 @@ struct MessageListView: View {
   var currentPage: Int = 1
   /// Callback when a pagination button is tapped
   var onPageLinkTapped: ((String) -> Void)?
+  @Environment(\.modelContext) private var modelContext
+  @Query private var preferences: [Preference]
+  
+  private var preference: Preference {
+    if let existing = preferences.first {
+      return existing
+    } else {
+      let new = Preference()
+      modelContext.insert(new)
+      return new
+    }
+  }
 
   var body: some View {
     ZStack {
@@ -35,7 +48,12 @@ struct MessageListView: View {
                 .transition(AnimationConstants.fadeInOut)
             } else {
               ForEach(rootMessages.sorted { $0.seqId < $1.seqId }) { message in
-                MessageRowView(message: message, depth: 0, selectedMessage: $selectedMessage)
+                MessageRowView(
+                  message: message, 
+                  depth: 0, 
+                  selectedMessage: $selectedMessage,
+                  preference: preference
+                )
                   .transition(AnimationConstants.slideFromLeading)
               }
             }
@@ -78,7 +96,12 @@ struct MessageRowView: View {
   let message: Message
   let depth: Int
   @Binding var selectedMessage: Message?
+  let preference: Preference
   @State private var isHovered: Bool = false
+  
+  private var isFavorite: Bool {
+    preference.isFavoriteMessage(message.messageId)
+  }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
@@ -117,20 +140,38 @@ struct MessageRowView: View {
 
         // Message content
         HStack(alignment: .center, spacing: 4) {
-          Text(message.subject)
-            .font(.system(size: 12, weight: .regular))
+          VStack(alignment: .leading, spacing: 2) {
+            Text(message.subject)
+              .font(.system(size: 12, weight: .regular))
+            
+            // Message ID with copy functionality
+            HStack {
+              Text("ID: \(message.messageId)")
+                .font(.system(size: 8))
+                .foregroundColor(.secondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+              
+              Spacer()
+              
+              Button(action: {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(message.messageId, forType: .string)
+              }) {
+                Image(systemName: "doc.on.doc")
+                  .font(.system(size: 8))
+                  .foregroundColor(.blue)
+              }
+              .buttonStyle(.plain)
+              .help("Copy Message ID")
+            }
+          }
 
           Spacer(minLength: 8)
 
           Text(message.timestamp, style: .date)
             .font(.system(size: 8))
             .foregroundColor(.secondary)
-
-          // Text(message.messageId)
-          //   .font(.system(size: 8))
-          //   .foregroundColor(.secondary)
-          //   .lineLimit(1)
-          //   .truncationMode(.head)
         }
 
         Spacer()
@@ -138,15 +179,15 @@ struct MessageRowView: View {
         // Favorite button
         Button(action: {
           withAnimation(AnimationConstants.springQuick) {
-            message.isFavorite.toggle()
+            preference.toggleFavoriteMessage(message.messageId)
           }
         }) {
-          Image(systemName: message.isFavorite ? "star.fill" : "star")
-            .foregroundColor(message.isFavorite ? .yellow : .secondary)
-            .scaleEffect(message.isFavorite ? AnimationConstants.favoriteScale : 1.0)
+          Image(systemName: isFavorite ? "star.fill" : "star")
+            .foregroundColor(isFavorite ? .yellow : .secondary)
+            .scaleEffect(isFavorite ? AnimationConstants.favoriteScale : 1.0)
         }
         .buttonStyle(.plain)
-        .animation(AnimationConstants.springQuick, value: message.isFavorite)
+        .animation(AnimationConstants.springQuick, value: isFavorite)
       }
       .padding(.vertical, 4)
       .contentShape(Rectangle())
@@ -171,7 +212,12 @@ struct MessageRowView: View {
       // Child messages (replies)
       if message.isExpanded && !message.replies.isEmpty {
         ForEach(message.replies.sorted { $0.seqId < $1.seqId }) { reply in
-          MessageRowView(message: reply, depth: depth + 1, selectedMessage: $selectedMessage)
+          MessageRowView(
+            message: reply, 
+            depth: depth + 1, 
+            selectedMessage: $selectedMessage,
+            preference: preference
+          )
             .padding(.leading, CGFloat(min(depth + 1, 6)) * 16)
             .transition(AnimationConstants.slideFromLeading)
         }

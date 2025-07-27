@@ -7,7 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		E6282DDC2E2E47E4001FDB02 /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = E6282DDB2E2E47E4001FDB02 /* SwiftSoup */; };
+		E6E925812E35FA79000D2E5C /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = E6E925802E35FA79000D2E5C /* SwiftSoup */; };
+		E6E925842E35FABC000D2E5C /* BitCollections in Frameworks */ = {isa = PBXBuildFile; productRef = E6E925832E35FABC000D2E5C /* BitCollections */; };
+		E6E925862E35FABC000D2E5C /* Collections in Frameworks */ = {isa = PBXBuildFile; productRef = E6E925852E35FABC000D2E5C /* Collections */; };
+		E6E925882E35FABC000D2E5C /* DequeModule in Frameworks */ = {isa = PBXBuildFile; productRef = E6E925872E35FABC000D2E5C /* DequeModule */; };
+		E6E9258A2E35FABC000D2E5C /* HashTreeCollections in Frameworks */ = {isa = PBXBuildFile; productRef = E6E925892E35FABC000D2E5C /* HashTreeCollections */; };
+		E6E9258C2E35FABC000D2E5C /* HeapModule in Frameworks */ = {isa = PBXBuildFile; productRef = E6E9258B2E35FABC000D2E5C /* HeapModule */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -40,7 +45,12 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E6282DDC2E2E47E4001FDB02 /* SwiftSoup in Frameworks */,
+				E6E9258A2E35FABC000D2E5C /* HashTreeCollections in Frameworks */,
+				E6E925862E35FABC000D2E5C /* Collections in Frameworks */,
+				E6E925882E35FABC000D2E5C /* DequeModule in Frameworks */,
+				E6E925842E35FABC000D2E5C /* BitCollections in Frameworks */,
+				E6E9258C2E35FABC000D2E5C /* HeapModule in Frameworks */,
+				E6E925812E35FA79000D2E5C /* SwiftSoup in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -83,7 +93,12 @@
 			);
 			name = Listux;
 			packageProductDependencies = (
-				E6282DDB2E2E47E4001FDB02 /* SwiftSoup */,
+				E6E925802E35FA79000D2E5C /* SwiftSoup */,
+				E6E925832E35FABC000D2E5C /* BitCollections */,
+				E6E925852E35FABC000D2E5C /* Collections */,
+				E6E925872E35FABC000D2E5C /* DequeModule */,
+				E6E925892E35FABC000D2E5C /* HashTreeCollections */,
+				E6E9258B2E35FABC000D2E5C /* HeapModule */,
 			);
 			productName = Listux;
 			productReference = E6282DB12E2E473C001FDB02 /* Listux.app */;
@@ -114,7 +129,8 @@
 			mainGroup = E6282DA82E2E473C001FDB02;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				E6282DDA2E2E47E4001FDB02 /* XCRemoteSwiftPackageReference "SwiftSoup" */,
+				E6E9257F2E35FA79000D2E5C /* XCRemoteSwiftPackageReference "SwiftSoup" */,
+				E6E925822E35FABC000D2E5C /* XCRemoteSwiftPackageReference "swift-collections" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = E6282DB22E2E473C001FDB02 /* Products */;
@@ -301,7 +317,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.0.1;
+				MARKETING_VERSION = 0.0.2;
 				PRODUCT_BUNDLE_IDENTIFIER = wheatfox.Listux;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -348,7 +364,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.0.1;
+				MARKETING_VERSION = 0.0.2;
 				PRODUCT_BUNDLE_IDENTIFIER = wheatfox.Listux;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -385,7 +401,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		E6282DDA2E2E47E4001FDB02 /* XCRemoteSwiftPackageReference "SwiftSoup" */ = {
+		E6E9257F2E35FA79000D2E5C /* XCRemoteSwiftPackageReference "SwiftSoup" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/scinfu/SwiftSoup.git";
 			requirement = {
@@ -393,13 +409,46 @@
 				minimumVersion = 2.9.6;
 			};
 		};
+		E6E925822E35FABC000D2E5C /* XCRemoteSwiftPackageReference "swift-collections" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-collections.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.2.1;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		E6282DDB2E2E47E4001FDB02 /* SwiftSoup */ = {
+		E6E925802E35FA79000D2E5C /* SwiftSoup */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = E6282DDA2E2E47E4001FDB02 /* XCRemoteSwiftPackageReference "SwiftSoup" */;
+			package = E6E9257F2E35FA79000D2E5C /* XCRemoteSwiftPackageReference "SwiftSoup" */;
 			productName = SwiftSoup;
+		};
+		E6E925832E35FABC000D2E5C /* BitCollections */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E6E925822E35FABC000D2E5C /* XCRemoteSwiftPackageReference "swift-collections" */;
+			productName = BitCollections;
+		};
+		E6E925852E35FABC000D2E5C /* Collections */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E6E925822E35FABC000D2E5C /* XCRemoteSwiftPackageReference "swift-collections" */;
+			productName = Collections;
+		};
+		E6E925872E35FABC000D2E5C /* DequeModule */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E6E925822E35FABC000D2E5C /* XCRemoteSwiftPackageReference "swift-collections" */;
+			productName = DequeModule;
+		};
+		E6E925892E35FABC000D2E5C /* HashTreeCollections */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E6E925822E35FABC000D2E5C /* XCRemoteSwiftPackageReference "swift-collections" */;
+			productName = HashTreeCollections;
+		};
+		E6E9258B2E35FABC000D2E5C /* HeapModule */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E6E925822E35FABC000D2E5C /* XCRemoteSwiftPackageReference "swift-collections" */;
+			productName = HeapModule;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

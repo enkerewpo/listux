@@ -16,6 +16,33 @@ class Parser {
     /// URL for the latest page, if available
     var latestURL: String?
   }
+  
+  /// Extract timestamp from message URL
+  /// URL format: https://lore.kernel.org/loongarch/20250714070438.2399153-1-chenhuacai@loongson.cn
+  /// The timestamp is encoded in the URL path: 20250714070438 (YYYYMMDDHHMMSS)
+  private static func extractTimestampFromURL(_ url: String) -> Date? {
+    // Extract the timestamp part from the URL
+    // Pattern: /YYYYMMDDHHMMSS-identifier/
+    let pattern = #"/(\d{14})-"#
+    
+    guard let regex = try? NSRegularExpression(pattern: pattern),
+          let match = regex.firstMatch(in: url, range: NSRange(url.startIndex..., in: url)),
+          match.numberOfRanges > 1 else {
+      return nil
+    }
+    
+    let timestampRange = match.range(at: 1)
+    guard let range = Range(timestampRange, in: url) else { return nil }
+    
+    let timestampString = String(url[range])
+    
+    // Parse YYYYMMDDHHMMSS format
+    let dateFormatter = DateFormatter()
+    dateFormatter.dateFormat = "yyyyMMddHHmmss"
+    dateFormatter.timeZone = TimeZone(abbreviation: "UTC")
+    
+    return dateFormatter.date(from: timestampString)
+  }
 
   static func parseMsgsFromListPage(from html: String, mailingList: MailingList)
     -> MessagePageResult
@@ -42,14 +69,24 @@ class Parser {
         let parent = link.parent()
         let dateText = try parent?.text() ?? ""
 
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm"
-        dateFormatter.timeZone = TimeZone(abbreviation: "UTC")
+        // Try to extract timestamp from URL first, fallback to parsing date text
+        var timestamp: Date
+        if let urlTimestamp = extractTimestampFromURL(url) {
+          timestamp = urlTimestamp
+          logger.debug("Extracted timestamp from URL: \(timestamp)")
+        } else {
+          // Fallback to parsing the date text from the page
+          let dateFormatter = DateFormatter()
+          dateFormatter.dateFormat = "yyyy-MM-dd HH:mm"
+          dateFormatter.timeZone = TimeZone(abbreviation: "UTC")
+          timestamp = dateFormatter.date(from: dateText) ?? Date()
+          logger.debug("Parsed timestamp from text: \(timestamp)")
+        }
 
         let message = Message(
           subject: subject,
           content: url,
-          timestamp: dateFormatter.date(from: dateText) ?? Date(),
+          timestamp: timestamp,
           seqId: seqId,  // Assign sequential id
           // https://lore.kernel.org/loongarch/20250714070438.2399153-1-chenhuacai@loongson.cn
           messageId: LORE_LINUX_BASE_URL.value + "/" + mailingList.name + "/" + url
