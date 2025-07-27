@@ -311,228 +311,63 @@ struct ContentView: View {
 
   #if os(iOS)
   var body: some View {
-    // Define the pagination handler closure so it can be used in both the toolbox bar and MessageListView
-    let onPageLinkTapped: (String) -> Void = { url in
-      guard let list = selectedList else { return }
-      if let next = messagePageLinks.next, url == next {
-        currentPage += 1
-      } else if let prev = messagePageLinks.prev, url == prev, currentPage > 1 {
-        currentPage -= 1
-      } else if let latest = messagePageLinks.latest, url == latest {
-        currentPage = 1
-      }
-      isLoadingMessages = true
-      Task {
-        do {
-          let fullUrl: String
-          if url.hasPrefix("http") {
-            fullUrl = url
-          } else {
-            let base = LORE_LINUX_BASE_URL.value + "/"
-            fullUrl =
-              base + list.name + "/" + url.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-          }
-          let html = try await NetworkService.shared.fetchMessageRaw(url: fullUrl)
-          let result = Parser.parseMsgsFromListPage(from: html, mailingList: list)
-          await MainActor.run {
-            list.orderedMessages = result.messages
-            messagePageLinks = (result.nextURL, result.prevURL, result.latestURL)
-            isLoadingMessages = false
-          }
-        } catch {
-          print("Failed to load messages for list \(list.name): \(error)")
-          await MainActor.run {
-            isLoadingMessages = false
-          }
-        }
-      }
-    }
-
-    NavigationSplitView {
-      SidebarView(
-        selectedSidebarTab: $selectedSidebarTab,
-        selectedList: $selectedList,
-        selectedTag: $selectedTag,
-        mailingLists: mailingLists,
-        isLoading: isLoadingMailingLists,
-        searchText: $mailingListSearchText,
-        onSelectList: { list in
-          isLoadingMessages = true
-          currentPage = 1
-          Task {
-            do {
-              let html = try await NetworkService.shared.fetchListPage(list.name)
-              let result = Parser.parseMsgsFromListPage(from: html, mailingList: list)
-              await MainActor.run {
-                list.orderedMessages = result.messages
-                messagePageLinks = (result.nextURL, result.prevURL, result.latestURL)
-                isLoadingMessages = false
-              }
-            } catch {
-              print("Failed to load messages for list \(list.name): \(error)")
-              await MainActor.run {
-                isLoadingMessages = false
-              }
-            }
-          }
-        },
-        onSelectTag: { tag in
-          selectedTag = tag
-          selectedMessage = nil
-        }
-      )
-    } content: {
-      VStack(spacing: 0) {
-        // Show different content based on selected tab
-        if selectedSidebarTab == .favorites {
-          // Favorites view - show tagged messages
-          if let tag = selectedTag {
-            VStack(spacing: 0) {
-              // Header showing selected tag
-              HStack {
-                Text("Tag: \(tag)")
-                  .font(.headline)
-                  .foregroundColor(.primary)
-                Spacer()
-                Text("\(taggedMessages.count) message\(taggedMessages.count == 1 ? "" : "s")")
-                  .font(.subheadline)
-                  .foregroundColor(.secondary)
-              }
-              .padding(.horizontal, 16)
-              .padding(.vertical, 8)
-              .background(Color(.systemGroupedBackground))
-              
-              Divider()
-              
-              // Tagged messages list
-              if taggedMessages.isEmpty {
-                Text("No messages with tag '\(tag)'")
-                  .foregroundColor(.secondary)
-                  .frame(maxWidth: .infinity, maxHeight: .infinity)
-              } else {
-                List(selection: $selectedMessage) {
-                  ForEach(taggedMessages, id: \.messageId) { message in
-                    TaggedMessageRowView(message: message, preference: preference, selectedMessage: $selectedMessage)
-                      .onTapGesture {
-                        withAnimation(Animation.userPreferenceQuick) {
-                          selectedMessage = message
-                        }
-                      }
+    TabView(selection: $selectedSidebarTab) {
+      NavigationStack {
+        MailingListView(
+          mailingLists: sortedMailingLists,
+          isLoading: isLoadingMailingLists,
+          onAppear: {
+            if mailingLists.isEmpty {
+              isLoadingMailingLists = true
+              Task {
+                do {
+                  let html = try await NetworkService.shared.fetchHomePage()
+                  let lists = Parser.parseListsFromHomePage(from: html)
+                  for list in lists {
+                    let mailingList = MailingList(name: list.name, desc: list.desc)
+                    modelContext.insert(mailingList)
                   }
-                }
-                .listStyle(.insetGrouped)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-              }
-            }
-          } else {
-            Text("Select a tag to view messages")
-              .foregroundColor(.secondary)
-              .frame(maxWidth: .infinity, maxHeight: .infinity)
-          }
-        } else {
-          // Lists view - show normal message list with pagination
-          HStack {
-            if selectedList != nil {
-              HStack(spacing: 24) {
-                PaginationButton(
-                  systemName: "chevron.left",
-                  help: "Prev (Newer)",
-                  isEnabled: messagePageLinks.prev != nil
-                ) {
-                  if let prev = messagePageLinks.prev { onPageLinkTapped(prev) }
-                }
-
-                PaginationButton(
-                  systemName: "arrow.left.to.line",
-                  help: "First Page",
-                  isEnabled: messagePageLinks.latest != nil
-                ) {
-                  if let latest = messagePageLinks.latest { onPageLinkTapped(latest) }
-                }
-
-                Text("Page \(currentPage)")
-                  .font(.subheadline)
-                  .foregroundColor(.secondary)
-                  .frame(minWidth: 60)
-                  .transition(AnimationConstants.fadeInOut)
-                  .animation(Animation.userPreferenceQuick, value: currentPage)
-
-                PaginationButton(
-                  systemName: "chevron.right",
-                  help: "Next (Older)",
-                  isEnabled: messagePageLinks.next != nil
-                ) {
-                  if let next = messagePageLinks.next { onPageLinkTapped(next) }
+                  isLoadingMailingLists = false
+                } catch {
+                  isLoadingMailingLists = false
                 }
               }
-              .padding(.trailing, 16)
-              .transition(AnimationConstants.slideFromTop)
             }
           }
-          .frame(maxWidth: .infinity)
-          .padding(.vertical, 8)
-          .background(Color(.systemGroupedBackground))
-          Divider()
-          MessageListView(
-            selectedSidebarTab: selectedSidebarTab, selectedList: selectedList,
-            selectedMessage: $selectedMessage,
-            isLoading: isLoadingMessages,
-            nextURL: messagePageLinks.next,
-            prevURL: messagePageLinks.prev,
-            latestURL: messagePageLinks.latest,
-            currentPage: currentPage,
-            onPageLinkTapped: onPageLinkTapped
-          )
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
+        )
       }
-      .animation(Animation.userPreference, value: selectedSidebarTab)
-      .animation(Animation.userPreference, value: selectedTag)
-    } detail: {
-      MessageDetailView(selectedMessage: selectedMessage)
-    }
-    .onChange(of: selectedList) {
-      withAnimation(Animation.userPreference) {
-        selectedMessage = nil
-        messagePageLinks = (nil, nil, nil)
-        currentPage = 1
+      .tabItem {
+        Image(systemName: "list.bullet")
+        Text("Lists")
       }
-    }
-    .onChange(of: selectedTag) {
-      withAnimation(Animation.userPreference) {
-        selectedMessage = nil
+      .tag(SidebarTab.lists)
+
+      NavigationStack {
+        FavoritesView(
+          preference: preference,
+          allMailingLists: mailingLists
+        )
       }
-    }
-    .onChange(of: settingsManager.shouldOpenSettings) { _, newValue in
-      if newValue {
-        withAnimation(Animation.userPreference) {
-          selectedSidebarTab = .settings
-        }
-        settingsManager.shouldOpenSettings = false
+      .tabItem {
+        Image(systemName: "star")
+        Text("Favorites")
       }
+      .tag(SidebarTab.favorites)
+
+      NavigationStack {
+        SettingsView()
+          .navigationTitle("Settings")
+          .navigationBarTitleDisplayMode(.large)
+      }
+      .tabItem {
+        Image(systemName: "gear")
+        Text("Settings")
+      }
+      .tag(SidebarTab.settings)
     }
     .onAppear {
       settingsManager.onDataCleared = {
-        selectedTag = nil
-        selectedMessage = nil
         selectedSidebarTab = .lists
-      }
-    }
-    .task {
-      if mailingLists.isEmpty {
-        isLoadingMailingLists = true
-        do {
-          let html = try await NetworkService.shared.fetchHomePage()
-          let lists = Parser.parseListsFromHomePage(from: html)
-          for list in lists {
-            let mailingList = MailingList(name: list.name, desc: list.desc)
-            modelContext.insert(mailingList)
-          }
-          isLoadingMailingLists = false
-        } catch {
-          print("Failed to load mailing lists: \(error)")
-          isLoadingMailingLists = false
-        }
       }
     }
   }
