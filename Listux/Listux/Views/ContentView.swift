@@ -271,14 +271,14 @@ struct ContentView: View {
       }
     }
     .onAppear {
-      // 设置数据清空回调
+      // Set up data cleared callback
       settingsManager.onDataCleared = {
         withAnimation(Animation.userPreference) {
-          // 只重置与本地数据相关的状态
+          // Only reset states related to local data
           selectedTag = nil
           selectedMessage = nil
           selectedSidebarTab = .lists
-          // 保留selectedList，因为MailingList数据不会被清空
+          // Keep selectedList, as MailingList data won't be cleared
         }
       }
     }

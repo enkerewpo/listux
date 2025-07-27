@@ -128,7 +128,7 @@ struct SettingsView: View {
                 Text("Clear Local Data")
                   .font(.headline)
                   .fontWeight(.medium)
-                Text("Remove all favorites, tags, and local preferences")
+                Text("Remove all favorites, tags, pinned lists, and local preferences")
                   .font(.caption)
                   .foregroundColor(.secondary)
               }
@@ -182,7 +182,7 @@ struct SettingsView: View {
         SettingsManager.shared.clearAllData(modelContext: modelContext)
       }
     } message: {
-      Text("This will permanently delete all favorites, tags, and local preferences. Mailing lists and messages will remain intact. This action cannot be undone.")
+      Text("This will permanently delete all favorites, tags, pinned lists, and local preferences. Mailing lists and messages will remain intact. This action cannot be undone.")
     }
   }
 

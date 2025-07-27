@@ -14,22 +14,29 @@ class SettingsManager {
         shouldOpenSettings = true
     }
     
-    // 清空本地持久化数据（收藏、标签等）
+    // Clear all local persistent data (favorites, tags, etc.)
     func clearAllData(modelContext: ModelContext) {
         do {
-            // 只清空Preference数据（收藏、标签、偏好设置）
+            // Clear Preference data (favorites, tags, preferences)
             let preferenceDescriptor = FetchDescriptor<Preference>()
             let preferences = try modelContext.fetch(preferenceDescriptor)
             for preference in preferences {
                 modelContext.delete(preference)
             }
             
-            // 保存更改
+            // Reset all MailingList pin states
+            let mailingListDescriptor = FetchDescriptor<MailingList>()
+            let mailingLists = try modelContext.fetch(mailingListDescriptor)
+            for list in mailingLists {
+                list.isPinned = false
+            }
+            
+            // Save changes
             try modelContext.save()
             
             print("All local persistent data has been cleared successfully")
             
-            // 通知数据已清空
+            // Notify that data has been cleared
             DispatchQueue.main.async {
                 self.onDataCleared?()
             }
