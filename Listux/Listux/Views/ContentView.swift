@@ -42,6 +42,12 @@ struct ContentView: View {
     }
   }
   
+  private var sortedMailingLists: [MailingList] {
+    let pinned = mailingLists.filter { $0.isPinned }.sorted { $0.name < $1.name }
+    let unpinned = mailingLists.filter { !$0.isPinned }.sorted { $0.name < $1.name }
+    return pinned + unpinned
+  }
+  
   private var taggedMessages: [Message] {
     guard let tag = selectedTag else { return [] }
     
@@ -63,6 +69,7 @@ struct ContentView: View {
     }.sorted { $0.timestamp > $1.timestamp }
   }
 
+  #if os(macOS)
   var body: some View {
     // Define the pagination handler closure so it can be used in both the toolbox bar and MessageListView
     let onPageLinkTapped: (String) -> Void = { url in
@@ -300,6 +307,345 @@ struct ContentView: View {
       }
     }
   }
+  #endif
+
+  #if os(iOS)
+  var body: some View {
+    TabView(selection: $selectedSidebarTab) {
+      // Lists Tab
+      NavigationView {
+        VStack(spacing: 0) {
+          // Mailing lists section
+          if !mailingLists.isEmpty {
+            VStack(spacing: 0) {
+              HStack {
+                Text("Mailing Lists")
+                  .font(.headline)
+                  .foregroundColor(.primary)
+                Spacer()
+                Text("\(mailingLists.count) lists")
+                  .font(.subheadline)
+                  .foregroundColor(.secondary)
+              }
+              .padding(.horizontal, 16)
+              .padding(.vertical, 8)
+              .background(Color(.systemGroupedBackground))
+              
+              ScrollView {
+                LazyVStack(spacing: 0) {
+                  ForEach(sortedMailingLists, id: \.id) { list in
+                    HStack {
+                      VStack(alignment: .leading, spacing: 2) {
+                        HStack {
+                          Text(list.name)
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(selectedList?.id == list.id ? .primary : .primary)
+                          
+                          if list.isPinned {
+                            Image(systemName: "pin.fill")
+                              .font(.system(size: 10))
+                              .foregroundColor(.orange)
+                          }
+                        }
+                        
+                        Text(list.desc)
+                          .font(.system(size: 12))
+                          .foregroundColor(.secondary)
+                          .lineLimit(1)
+                      }
+                      
+                      Spacer()
+                      
+                      Button(action: {
+                        preference.togglePinned(list)
+                      }) {
+                        Image(systemName: list.isPinned ? "pin.fill" : "pin")
+                          .font(.system(size: 14))
+                          .foregroundColor(list.isPinned ? .orange : .secondary)
+                      }
+                      .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(
+                      Rectangle()
+                        .fill(selectedList?.id == list.id ? Color.accentColor.opacity(0.1) : Color.clear)
+                    )
+                    .onTapGesture {
+                      selectedList = list
+                      isLoadingMessages = true
+                      currentPage = 1
+                      Task {
+                        do {
+                          let html = try await NetworkService.shared.fetchListPage(list.name)
+                          let result = Parser.parseMsgsFromListPage(from: html, mailingList: list)
+                          await MainActor.run {
+                            list.orderedMessages = result.messages
+                            messagePageLinks = (result.nextURL, result.prevURL, result.latestURL)
+                            isLoadingMessages = false
+                          }
+                        } catch {
+                          print("Failed to load messages for list \(list.name): \(error)")
+                          await MainActor.run {
+                            isLoadingMessages = false
+                          }
+                        }
+                      }
+                    }
+                    
+                    if list.id != sortedMailingLists.last?.id {
+                      Divider()
+                        .padding(.leading, 16)
+                    }
+                  }
+                }
+              }
+              .background(Color(.systemBackground))
+              .frame(maxHeight: 180)
+              
+              Divider()
+            }
+          }
+          
+          // Pagination controls
+          if selectedList != nil {
+            HStack {
+              Button(action: {
+                if let prev = messagePageLinks.prev {
+                  // Handle previous page
+                }
+              }) {
+                Image(systemName: "chevron.left")
+              }
+              .disabled(messagePageLinks.prev == nil)
+              
+              Spacer()
+              
+              Text("Page \(currentPage)")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+              
+              Spacer()
+              
+              Button(action: {
+                if let next = messagePageLinks.next {
+                  // Handle next page
+                }
+              }) {
+                Image(systemName: "chevron.right")
+              }
+              .disabled(messagePageLinks.next == nil)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 6)
+            .background(Color(.systemGroupedBackground))
+          }
+          
+          // Messages list
+          MessageListView(
+            selectedSidebarTab: selectedSidebarTab,
+            selectedList: selectedList,
+            selectedMessage: $selectedMessage,
+            isLoading: isLoadingMessages,
+            nextURL: messagePageLinks.next,
+            prevURL: messagePageLinks.prev,
+            latestURL: messagePageLinks.latest,
+            currentPage: currentPage,
+            onPageLinkTapped: { url in
+              // Handle page navigation
+            }
+          )
+        }
+        .navigationTitle("Lists")
+        .navigationBarTitleDisplayMode(.large)
+      }
+      .tabItem {
+        Image(systemName: "list.bullet")
+        Text("Lists")
+      }
+      .tag(SidebarTab.lists)
+      
+      // Favorites Tab
+      NavigationView {
+        VStack(spacing: 0) {
+          // Tag picker for favorites
+          if !preference.getAllTags().isEmpty {
+            HStack {
+              Text("Tag:")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+              
+              Menu {
+                ForEach(preference.getAllTags(), id: \.self) { tag in
+                  Button(action: {
+                    selectedTag = tag
+                  }) {
+                    HStack {
+                      Text(tag)
+                      if selectedTag == tag {
+                        Image(systemName: "checkmark")
+                      }
+                    }
+                  }
+                }
+                
+                if !preference.getUntaggedMessages().isEmpty {
+                  Divider()
+                  Button(action: {
+                    selectedTag = "Untagged"
+                  }) {
+                    HStack {
+                      Text("Untagged")
+                      if selectedTag == "Untagged" {
+                        Image(systemName: "checkmark")
+                      }
+                    }
+                  }
+                }
+              } label: {
+                HStack {
+                  Text(selectedTag ?? "Select a tag")
+                    .font(.headline)
+                    .foregroundColor(selectedTag == nil ? .secondary : .primary)
+                  Image(systemName: "chevron.down")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(
+                  RoundedRectangle(cornerRadius: 8)
+                    .fill(Color(.systemGray6))
+                )
+              }
+              
+              Spacer()
+            }
+            .padding()
+            .background(Color(.systemGroupedBackground))
+          }
+          
+          if let tag = selectedTag {
+            // Header
+            HStack {
+              Text("Tag: \(tag)")
+                .font(.headline)
+              Spacer()
+              Text("\(taggedMessages.count) messages")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            }
+            .padding()
+            .background(Color(.systemGroupedBackground))
+            
+            // Messages list
+            if taggedMessages.isEmpty {
+              VStack {
+                Image(systemName: "tag")
+                  .font(.system(size: 48))
+                  .foregroundColor(.secondary)
+                Text("No messages with tag '\(tag)'")
+                  .foregroundColor(.secondary)
+              }
+              .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+              List(selection: $selectedMessage) {
+                ForEach(taggedMessages, id: \.messageId) { message in
+                  TaggedMessageRowView(message: message, preference: preference, selectedMessage: $selectedMessage)
+                    .onTapGesture {
+                      selectedMessage = message
+                    }
+                }
+              }
+              .listStyle(.insetGrouped)
+            }
+          } else {
+            VStack {
+              Image(systemName: "star")
+                .font(.system(size: 48))
+                .foregroundColor(.secondary)
+              Text("Select a tag to view messages")
+                .foregroundColor(.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+          }
+        }
+        .navigationTitle("Favorites")
+        .navigationBarTitleDisplayMode(.large)
+      }
+      .tabItem {
+        Image(systemName: "star")
+        Text("Favorites")
+      }
+      .tag(SidebarTab.favorites)
+      
+      // Settings Tab
+      NavigationView {
+        SettingsView()
+          .navigationTitle("Settings")
+          .navigationBarTitleDisplayMode(.large)
+      }
+      .tabItem {
+        Image(systemName: "gear")
+        Text("Settings")
+      }
+      .tag(SidebarTab.settings)
+    }
+    .tabViewStyle(.sidebarAdaptable)
+    .sheet(item: $selectedMessage) { message in
+      NavigationView {
+        MessageDetailView(selectedMessage: message)
+          .navigationTitle("Message")
+          .navigationBarTitleDisplayMode(.inline)
+          .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+              Button("Done") {
+                selectedMessage = nil
+              }
+            }
+          }
+      }
+    }
+    .onChange(of: selectedList) {
+      selectedMessage = nil
+      messagePageLinks = (nil, nil, nil)
+      currentPage = 1
+    }
+    .onChange(of: selectedTag) {
+      selectedMessage = nil
+    }
+    .onChange(of: settingsManager.shouldOpenSettings) { _, newValue in
+      if newValue {
+        selectedSidebarTab = .settings
+        settingsManager.shouldOpenSettings = false
+      }
+    }
+    .onAppear {
+      settingsManager.onDataCleared = {
+        selectedTag = nil
+        selectedMessage = nil
+        selectedSidebarTab = .lists
+      }
+    }
+    .task {
+      if mailingLists.isEmpty {
+        isLoadingMailingLists = true
+        do {
+          let html = try await NetworkService.shared.fetchHomePage()
+          let lists = Parser.parseListsFromHomePage(from: html)
+          for list in lists {
+            let mailingList = MailingList(name: list.name, desc: list.desc)
+            modelContext.insert(mailingList)
+          }
+          isLoadingMailingLists = false
+        } catch {
+          print("Failed to load mailing lists: \(error)")
+          isLoadingMailingLists = false
+        }
+      }
+    }
+  }
+  #endif
 }
 
 struct TaggedMessageRowView: View {
@@ -341,8 +687,12 @@ struct TaggedMessageRowView: View {
             Spacer()
             
             Button(action: {
+              #if os(macOS)
               NSPasteboard.general.clearContents()
               NSPasteboard.general.setString(message.messageId, forType: .string)
+              #else
+              // TODO: Implement copy to clipboard for iOS
+              #endif
             }) {
               Image(systemName: "doc.on.doc")
                 .font(.system(size: 8))
