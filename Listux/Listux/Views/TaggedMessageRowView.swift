@@ -1,6 +1,7 @@
 import SwiftUI
+
 #if os(iOS)
-import UIKit
+  import UIKit
 #endif
 
 struct TaggedMessageRowView: View {
@@ -18,34 +19,34 @@ struct TaggedMessageRowView: View {
           Text(message.subject)
             .font(.system(size: 12, weight: .medium))
             .lineLimit(1)
-          
+
           HStack {
             Text(message.mailingList?.name ?? "Unknown")
               .font(.system(size: 10))
               .foregroundColor(.secondary)
-            
+
             Spacer()
-            
+
             Text(message.timestamp, style: .date)
               .font(.system(size: 8))
               .foregroundColor(.secondary)
           }
-          
+
           HStack {
             Text("ID: \(message.messageId)")
               .font(.system(size: 8))
               .foregroundColor(.secondary)
               .lineLimit(1)
               .truncationMode(.middle)
-            
+
             Spacer()
-            
+
             Button(action: {
               #if os(macOS)
-              NSPasteboard.general.clearContents()
-              NSPasteboard.general.setString(message.messageId, forType: .string)
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(message.messageId, forType: .string)
               #else
-              UIPasteboard.general.string = message.messageId
+                UIPasteboard.general.string = message.messageId
               #endif
             }) {
               Image(systemName: "doc.on.doc")
@@ -56,16 +57,16 @@ struct TaggedMessageRowView: View {
             .help("Copy Message ID")
           }
         }
-        
+
         Spacer()
-        
+
         HStack(spacing: 4) {
           ForEach(preference.getTags(for: message.messageId), id: \.self) { tag in
             TagChipView(tag: tag) {
               preference.removeTag(tag, from: message.messageId)
             }
           }
-          
+
           Button(action: {
             showingTagInput = true
           }) {
@@ -78,16 +79,16 @@ struct TaggedMessageRowView: View {
             VStack(spacing: 8) {
               Text("Add Tag")
                 .font(.headline)
-              
+
               TextField("Tag name", text: $newTag)
                 .textFieldStyle(RoundedBorderTextFieldStyle())
-              
+
               HStack {
                 Button("Cancel") {
                   showingTagInput = false
                   newTag = ""
                 }
-                
+
                 Button("Add") {
                   if !newTag.isEmpty {
                     preference.addTag(newTag, to: message.messageId)
@@ -101,7 +102,7 @@ struct TaggedMessageRowView: View {
             .padding()
             .frame(width: 200)
           }
-          
+
           Button(action: {
             withAnimation(Animation.userPreferenceQuick) {
               preference.toggleFavoriteMessage(message.messageId)
@@ -130,14 +131,15 @@ struct TaggedMessageRowView: View {
       }
     }
     .animation(Animation.userPreferenceQuick, value: isHovered)
-    .animation(Animation.userPreferenceQuick, value: selectedMessage?.messageId == message.messageId)
+    .animation(
+      Animation.userPreferenceQuick, value: selectedMessage?.messageId == message.messageId)
   }
 }
 
 struct TagChipView: View {
   let tag: String
   let onRemove: () -> Void
-  
+
   var body: some View {
     HStack(spacing: 2) {
       Text(tag)
@@ -148,7 +150,7 @@ struct TagChipView: View {
           RoundedRectangle(cornerRadius: 2)
             .fill(Color.blue.opacity(0.2))
         )
-      
+
       Button(action: onRemove) {
         Image(systemName: "xmark.circle.fill")
           .font(.system(size: 8))
@@ -157,4 +159,4 @@ struct TagChipView: View {
       .buttonStyle(.plain)
     }
   }
-} 
+}

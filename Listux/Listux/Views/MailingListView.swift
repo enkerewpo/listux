@@ -1,5 +1,5 @@
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 struct MailingListView: View {
   let mailingLists: [MailingList]
@@ -7,18 +7,95 @@ struct MailingListView: View {
   let onAppear: () -> Void
   @State private var selectedList: MailingList? = nil
   @State private var showMessages: Bool = false
+  @State private var searchText: String = ""
+  @Environment(\.modelContext) private var modelContext
+  @Query private var preferences: [Preference]
+
+  private var preference: Preference {
+    if let existing = preferences.first {
+      return existing
+    } else {
+      let new = Preference()
+      modelContext.insert(new)
+      return new
+    }
+  }
+
+  private var filteredLists: [MailingList] {
+    if searchText.isEmpty {
+      return mailingLists
+    }
+    return mailingLists.filter { list in
+      list.name.localizedCaseInsensitiveContains(searchText) ||
+      list.desc.localizedCaseInsensitiveContains(searchText)
+    }
+  }
+
+  private var sortedLists: [MailingList] {
+    let pinned = filteredLists.filter { $0.isPinned }.sorted { $0.name < $1.name }
+    let unpinned = filteredLists.filter { !$0.isPinned }.sorted { $0.name < $1.name }
+    return pinned + unpinned
+  }
 
   var body: some View {
-    List(mailingLists, id: \ .id) { list in
-      NavigationLink(destination: MailingListMessageView(mailingList: list)) {
-        VStack(alignment: .leading) {
-          Text(list.name)
-            .font(.headline)
-          Text(list.desc)
-            .font(.subheadline)
-            .foregroundColor(.secondary)
+    VStack(spacing: 0) {
+      // Search bar
+      HStack {
+        Image(systemName: "magnifyingglass")
+          .font(.system(size: 14))
+          .foregroundColor(.secondary)
+        TextField("Search mailing lists", text: $searchText)
+          .textFieldStyle(.plain)
+          .font(.system(size: 16))
+      }
+      .padding(.horizontal, 16)
+      .padding(.vertical, 12)
+      .background(
+        RoundedRectangle(cornerRadius: 10)
+        #if os(iOS)
+          .fill(Color(.systemGray6))
+        #else
+          .fill(Color(.windowBackgroundColor))
+        #endif
+      )
+      .padding(.horizontal, 16)
+      .padding(.vertical, 8)
+
+      // Mailing lists
+      List(sortedLists, id: \.id) { list in
+        HStack {
+          NavigationLink(destination: MailingListMessageView(mailingList: list)) {
+            VStack(alignment: .leading) {
+              HStack {
+                if list.isPinned {
+                  Image(systemName: "pin.fill")
+                    .font(.caption)
+                    .foregroundColor(.orange)
+                }
+                Text(list.name)
+                  .font(.headline)
+              }
+              Text(list.desc)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            }
+          }
+          
+          Spacer()
+          
+          Button(action: {
+            withAnimation(AnimationConstants.springQuick) {
+              preference.togglePinned(list)
+            }
+          }) {
+            Image(systemName: list.isPinned ? "pin.fill" : "pin")
+              .font(.caption)
+              .foregroundColor(list.isPinned ? .orange : .secondary)
+          }
+          .buttonStyle(.plain)
         }
       }
+      .listStyle(PlainListStyle())
     }
     .navigationTitle("Mailing Lists")
     .onAppear(perform: onAppear)
@@ -38,7 +115,7 @@ struct MailingListMessageView: View {
   @State private var messages: [Message] = []
   @Environment(\.modelContext) private var modelContext
   @Query private var preferences: [Preference]
-  
+
   private var preference: Preference {
     if let existing = preferences.first {
       return existing
@@ -77,4 +154,4 @@ struct MailingListMessageView: View {
       }
     }
   }
-} 
+}

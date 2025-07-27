@@ -12,7 +12,7 @@ struct TagItemView: View {
       Image(systemName: tag == "Untagged" ? "tag.slash" : "tag")
         .font(.system(size: 12))
         .foregroundColor(tag == "Untagged" ? .secondary : .blue)
-      
+
       VStack(alignment: .leading, spacing: 2) {
         Text(tag)
           .font(.system(size: 13, weight: .medium))
@@ -22,7 +22,7 @@ struct TagItemView: View {
           .foregroundColor(.secondary)
           .lineLimit(1)
       }
-      
+
       Spacer()
     }
     .padding(.horizontal, 12)
@@ -48,4 +48,4 @@ struct TagItemView: View {
     .animation(Animation.userPreferenceQuick, value: isSelected)
     .animation(Animation.userPreferenceQuick, value: isHovered)
   }
-} 
+}

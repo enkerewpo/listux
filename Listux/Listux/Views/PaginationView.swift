@@ -72,4 +72,4 @@ struct PaginationButton: View {
     }
     .animation(Animation.userPreferenceQuick, value: isHovered)
   }
-} 
+}

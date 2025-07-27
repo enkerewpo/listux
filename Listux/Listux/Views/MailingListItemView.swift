@@ -16,7 +16,7 @@ struct MailingListItemView: View {
           .font(.system(size: 10))
           .foregroundColor(.orange)
       }
-      
+
       VStack(alignment: .leading, spacing: 2) {
         Text(list.name)
           .font(.system(size: 13, weight: .medium))
@@ -26,9 +26,9 @@ struct MailingListItemView: View {
           .foregroundColor(.secondary)
           .lineLimit(1)
       }
-      
+
       Spacer()
-      
+
       // Pin toggle button
       Button(action: onPinToggle) {
         Image(systemName: isPinned ? "pin.fill" : "pin")
@@ -62,4 +62,4 @@ struct MailingListItemView: View {
     .animation(Animation.userPreferenceQuick, value: isSelected)
     .animation(Animation.userPreferenceQuick, value: isHovered)
   }
-} 
+}

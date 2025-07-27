@@ -83,13 +83,16 @@ class Parser {
           logger.debug("Parsed timestamp from text: \(timestamp)")
         }
 
+        let fullUrl = LORE_LINUX_BASE_URL.value + "/" + mailingList.name + "/" + url.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        logger.debug("Constructing messageId: \(fullUrl)")
+        
         let message = Message(
           subject: subject,
           content: url,
           timestamp: timestamp,
           seqId: seqId,  // Assign sequential id
           // https://lore.kernel.org/loongarch/20250714070438.2399153-1-chenhuacai@loongson.cn
-          messageId: LORE_LINUX_BASE_URL.value + "/" + mailingList.name + "/" + url
+          messageId: fullUrl
         )
         message.mailingList = mailingList
         seqId += 1

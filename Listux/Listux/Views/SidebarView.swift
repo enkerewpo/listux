@@ -1,5 +1,5 @@
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 enum SidebarTab: Hashable, CaseIterable {
   case lists, favorites, settings
@@ -71,7 +71,7 @@ struct SidebarView: View {
   @FocusState private var isSearchFocused: Bool
   @Environment(\.modelContext) private var modelContext
   @Query private var preferences: [Preference]
-  
+
   private var preference: Preference {
     if let existing = preferences.first {
       return existing
@@ -91,13 +91,13 @@ struct SidebarView: View {
         || list.desc.localizedCaseInsensitiveContains(searchText)
     }
   }
-  
+
   private var sortedLists: [MailingList] {
     let pinned = filteredLists.filter { $0.isPinned }
     let unpinned = filteredLists.filter { !$0.isPinned }
     return pinned + unpinned
   }
-  
+
   private var allTags: [String] {
     var tags = preference.getAllTags()
     if !preference.getUntaggedMessages().isEmpty {
@@ -148,12 +148,12 @@ struct SidebarView: View {
     }
     .frame(minWidth: 240, idealWidth: 320, maxWidth: .infinity, maxHeight: .infinity)
     #if os(macOS)
-    .background(Color(NSColor.controlBackgroundColor))
+      .background(Color(NSColor.controlBackgroundColor))
     #else
-    .background(.ultraThinMaterial)
+      .background(.ultraThinMaterial)
     #endif
   }
-  
+
   @ViewBuilder
   private var listsContent: some View {
     if isLoading {
@@ -179,7 +179,8 @@ struct SidebarView: View {
             .fill(searchBarBackgroundColor)
             .overlay(
               RoundedRectangle(cornerRadius: 8)
-                .stroke(isSearchFocused ? Color.accentColor.opacity(0.5) : Color.clear, lineWidth: 1)
+                .stroke(
+                  isSearchFocused ? Color.accentColor.opacity(0.5) : Color.clear, lineWidth: 1)
             )
         )
         .padding(.horizontal, 12)
@@ -212,7 +213,7 @@ struct SidebarView: View {
       .transition(AnimationConstants.slideFromTrailing)
     }
   }
-  
+
   @ViewBuilder
   private var favoritesContent: some View {
     VStack(spacing: 0) {
@@ -233,9 +234,8 @@ struct SidebarView: View {
             TagItemView(
               tag: tag,
               isSelected: selectedTag == tag,
-              messageCount: tag == "Untagged" ? 
-                preference.getUntaggedMessages().count : 
-                preference.getMessagesWithTag(tag).count,
+              messageCount: tag == "Untagged"
+                ? preference.getUntaggedMessages().count : preference.getMessagesWithTag(tag).count,
               onSelect: {
                 withAnimation(Animation.userPreferenceQuick) {
                   selectedTag = tag
@@ -251,27 +251,27 @@ struct SidebarView: View {
     }
     .transition(AnimationConstants.slideFromTrailing)
   }
-  
+
   private var searchBarBackgroundColor: Color {
     #if os(macOS)
-    Color(.controlBackgroundColor)
+      Color(.controlBackgroundColor)
     #else
-    Color(.systemGray6)
+      Color(.systemGray6)
     #endif
   }
-  
+
   private var listStyle: some ListStyle {
     #if os(macOS)
-    .sidebar
+      .sidebar
     #else
-    .insetGrouped
+      .insetGrouped
     #endif
   }
 }
 
 #Preview {
   SidebarView(
-    selectedSidebarTab: .constant(.lists), 
+    selectedSidebarTab: .constant(.lists),
     selectedList: .constant(nil),
     selectedTag: .constant(nil),
     mailingLists: [MailingList(name: "linux-kernel", desc: "Linux Kernel Mailing List")],

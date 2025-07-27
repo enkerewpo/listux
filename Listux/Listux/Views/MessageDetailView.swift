@@ -1,7 +1,8 @@
-import SwiftUI
 import SwiftData
+import SwiftUI
+
 #if os(iOS)
-import UIKit
+  import UIKit
 #endif
 
 struct MessageDetailView: View {
@@ -13,7 +14,7 @@ struct MessageDetailView: View {
   @State private var newTag: String = ""
   @Environment(\.modelContext) private var modelContext
   @Query private var preferences: [Preference]
-  
+
   private var preference: Preference {
     if let existing = preferences.first {
       return existing
@@ -23,7 +24,7 @@ struct MessageDetailView: View {
       return new
     }
   }
-  
+
   private var isFavorite: Bool {
     guard let message = selectedMessage else { return false }
     return preference.isFavoriteMessage(message.messageId)
@@ -74,15 +75,15 @@ struct MessageDetailView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .transition(AnimationConstants.slideFromLeading)
-              
+
               Spacer()
-              
+
               Button(action: {
                 #if os(macOS)
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(msg.messageId, forType: .string)
+                  NSPasteboard.general.clearContents()
+                  NSPasteboard.general.setString(msg.messageId, forType: .string)
                 #else
-                UIPasteboard.general.string = msg.messageId
+                  UIPasteboard.general.string = msg.messageId
                 #endif
               }) {
                 Image(systemName: "doc.on.doc")
@@ -113,9 +114,9 @@ struct MessageDetailView: View {
               Text("Tags")
                 .font(.headline)
                 .transition(AnimationConstants.slideFromLeading)
-              
+
               Spacer()
-              
+
               Button(action: {
                 showingTagInput = true
               }) {
@@ -128,16 +129,16 @@ struct MessageDetailView: View {
                 VStack(spacing: 8) {
                   Text("Add Tag")
                     .font(.headline)
-                  
+
                   TextField("Tag name", text: $newTag)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
-                  
+
                   HStack {
                     Button("Cancel") {
                       showingTagInput = false
                       newTag = ""
                     }
-                    
+
                     Button("Add") {
                       if !newTag.isEmpty {
                         preference.addTag(newTag, to: msg.messageId)
@@ -152,7 +153,7 @@ struct MessageDetailView: View {
                 .frame(width: 200)
               }
             }
-            
+
             if !preference.getTags(for: msg.messageId).isEmpty {
               LazyVGrid(columns: [GridItem(.adaptive(minimum: 100))], spacing: 4) {
                 ForEach(preference.getTags(for: msg.messageId), id: \.self) { tag in
@@ -165,7 +166,7 @@ struct MessageDetailView: View {
                         RoundedRectangle(cornerRadius: 4)
                           .fill(Color.blue.opacity(0.2))
                       )
-                    
+
                     Button(action: {
                       preference.removeTag(tag, from: msg.messageId)
                     }) {
@@ -213,7 +214,8 @@ struct MessageDetailView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .transition(AnimationConstants.fadeInOut)
             } else {
-              Text(messageHtml)
+              let displayHtml = messageHtml.prefix(3000) + (messageHtml.count > 3000 ? "\n\n... (content truncated, showing first 3000 characters)" : "")
+              Text(displayHtml)
                 .font(.system(.caption, design: .monospaced))
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -235,6 +237,7 @@ struct MessageDetailView: View {
     .padding()
     .animation(AnimationConstants.standard, value: selectedMessage?.id)
     .onChange(of: selectedMessage) { _, newMessage in
+      print("onChange triggered - newMessage: \(newMessage?.subject ?? "nil")")
       if let message = newMessage {
         loadMessageHtml(message: message)
       } else {
@@ -244,9 +247,17 @@ struct MessageDetailView: View {
         }
       }
     }
+    .onAppear {
+      print("onAppear triggered - selectedMessage: \(selectedMessage?.subject ?? "nil")")
+      if let message = selectedMessage {
+        loadMessageHtml(message: message)
+      }
+    }
   }
 
   private func loadMessageHtml(message: Message) {
+    print("loadMessageHtml called for message: \(message.subject)")
+    
     withAnimation(AnimationConstants.quick) {
       isLoadingHtml = true
       messageHtml = ""
@@ -254,17 +265,32 @@ struct MessageDetailView: View {
 
     Task {
       do {
-        // Use messageId which contains the full URL, or construct from content if needed
-        let url: String
-        if message.messageId.hasPrefix("http") {
-          url = message.messageId
-        } else {
-          // Fallback to content field which should contain the relative URL
-          let base = LORE_LINUX_BASE_URL.value + "/"
-          url = base + message.content.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        // messageId should already contain the full URL
+        var url = message.messageId
+        
+        // Ensure URL is properly formatted
+        if !url.hasPrefix("http") {
+          // Fallback: construct URL from content field
+          let base = LORE_LINUX_BASE_URL.value
+          let relativePath = message.content.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+          url = "\(base)/\(message.mailingList?.name ?? "")/\(relativePath)"
+        }
+        
+        print("Loading HTML from URL: \(url)")
+        print("Message content field: \(message.content)")
+        print("Message mailing list: \(message.mailingList?.name ?? "nil")")
+
+        // Validate URL
+        guard URL(string: url) != nil else {
+          throw URLError(.badURL)
         }
 
         let html = try await NetworkService.shared.fetchMessageRaw(url: url)
+        
+        if html.isEmpty {
+          print("Warning: Received empty HTML content")
+        }
+        
         await MainActor.run {
           withAnimation(AnimationConstants.standard) {
             messageHtml = html
@@ -273,6 +299,8 @@ struct MessageDetailView: View {
         }
       } catch {
         print("Failed to load message HTML: \(error)")
+        print("Error details: \(error.localizedDescription)")
+        
         await MainActor.run {
           withAnimation(AnimationConstants.quick) {
             messageHtml = "Error loading message content: \(error.localizedDescription)"

@@ -50,13 +50,40 @@ class NetworkService {
 
   /// Fetch raw HTML from an arbitrary URL string, please make sure this is a message page
   func fetchMessageRaw(url: String) async throws -> String {
-    guard let u = URL(string: url) else { throw URLError(.badURL) }
-    let (data, response) = try await URLSession.shared.data(from: u)
-    if let httpResponse = response as? HTTPURLResponse {
-      logger.info("Raw fetch response status: \(httpResponse.statusCode)")
+    logger.info("Fetching raw message from URL: \(url)")
+    
+    guard let u = URL(string: url) else { 
+      logger.error("Invalid URL: \(url)")
+      throw URLError(.badURL) 
     }
-    let html = String(data: data, encoding: .utf8) ?? ""
-    logger.info("Raw fetch content length: \(html.count) characters")
-    return html
+    
+    do {
+      let (data, response) = try await URLSession.shared.data(from: u)
+      
+      if let httpResponse = response as? HTTPURLResponse {
+        logger.info("Raw fetch response status: \(httpResponse.statusCode)")
+        
+        if httpResponse.statusCode != 200 {
+          logger.error("HTTP error: \(httpResponse.statusCode)")
+          throw URLError(.badServerResponse)
+        }
+      }
+      
+      guard let html = String(data: data, encoding: .utf8) else {
+        logger.error("Failed to decode HTML content")
+        throw URLError(.cannotDecodeContentData)
+      }
+      
+      logger.info("Raw fetch content length: \(html.count) characters")
+      
+      if html.isEmpty {
+        logger.warning("Received empty HTML content")
+      }
+      
+      return html
+    } catch {
+      logger.error("Network request failed: \(error.localizedDescription)")
+      throw error
+    }
   }
 }

@@ -24,9 +24,9 @@ struct TaggedMessagesView: View {
       #else
         .background(Color(.systemGroupedBackground))
       #endif
-      
+
       Divider()
-      
+
       if messages.isEmpty {
         Text("No messages with tag '\(tag)'")
           .foregroundColor(.secondary)
@@ -34,12 +34,14 @@ struct TaggedMessagesView: View {
       } else {
         List(selection: $selectedMessage) {
           ForEach(messages, id: \.messageId) { message in
-            TaggedMessageRowView(message: message, preference: preference, selectedMessage: $selectedMessage)
-              .onTapGesture {
-                withAnimation(Animation.userPreferenceQuick) {
-                  selectedMessage = message
-                }
+            TaggedMessageRowView(
+              message: message, preference: preference, selectedMessage: $selectedMessage
+            )
+            .onTapGesture {
+              withAnimation(Animation.userPreferenceQuick) {
+                selectedMessage = message
               }
+            }
           }
         }
         #if os(macOS)
@@ -51,4 +53,4 @@ struct TaggedMessagesView: View {
       }
     }
   }
-} 
+}

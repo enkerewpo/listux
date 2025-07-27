@@ -1,5 +1,5 @@
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 struct SettingsView: View {
   @Environment(\.modelContext) private var modelContext
@@ -182,7 +182,9 @@ struct SettingsView: View {
         SettingsManager.shared.clearAllData(modelContext: modelContext)
       }
     } message: {
-      Text("This will permanently delete all favorites, tags, pinned lists, and local preferences. Mailing lists and messages will remain intact. This action cannot be undone.")
+      Text(
+        "This will permanently delete all favorites, tags, pinned lists, and local preferences. Mailing lists and messages will remain intact. This action cannot be undone."
+      )
     }
   }
 

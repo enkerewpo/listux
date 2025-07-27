@@ -1,7 +1,8 @@
-import SwiftUI
 import SwiftData
+import SwiftUI
+
 #if os(iOS)
-import UIKit
+  import UIKit
 #endif
 
 struct MessageListView: View {
@@ -21,7 +22,7 @@ struct MessageListView: View {
   var onPageLinkTapped: ((String) -> Void)?
   @Environment(\.modelContext) private var modelContext
   @Query private var preferences: [Preference]
-  
+
   private var preference: Preference {
     if let existing = preferences.first {
       return existing
@@ -52,12 +53,12 @@ struct MessageListView: View {
             } else {
               ForEach(rootMessages.sorted { $0.seqId < $1.seqId }) { message in
                 MessageRowView(
-                  message: message, 
-                  depth: 0, 
+                  message: message,
+                  depth: 0,
                   selectedMessage: $selectedMessage,
                   preference: preference
                 )
-                  .transition(AnimationConstants.slideFromLeading)
+                .transition(AnimationConstants.slideFromLeading)
               }
             }
           }
@@ -103,7 +104,7 @@ struct MessageRowView: View {
   @State private var isHovered: Bool = false
   @State private var showingTagInput: Bool = false
   @State private var newTag: String = ""
-  
+
   private var isFavorite: Bool {
     preference.isFavoriteMessage(message.messageId)
   }
@@ -148,7 +149,7 @@ struct MessageRowView: View {
           VStack(alignment: .leading, spacing: 2) {
             Text(message.subject)
               .font(.system(size: 12, weight: .regular))
-            
+
             // Message ID with copy functionality
             HStack {
               Text("ID: \(message.messageId)")
@@ -156,15 +157,15 @@ struct MessageRowView: View {
                 .foregroundColor(.secondary)
                 .lineLimit(1)
                 .truncationMode(.middle)
-              
+
               Spacer()
-              
+
               Button(action: {
                 #if os(macOS)
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(message.messageId, forType: .string)
+                  NSPasteboard.general.clearContents()
+                  NSPasteboard.general.setString(message.messageId, forType: .string)
                 #else
-                UIPasteboard.general.string = message.messageId
+                  UIPasteboard.general.string = message.messageId
                 #endif
               }) {
                 Image(systemName: "doc.on.doc")
@@ -192,7 +193,7 @@ struct MessageRowView: View {
               preference.removeTag(tag, from: message.messageId)
             }
           }
-          
+
           Button(action: {
             showingTagInput = true
           }) {
@@ -205,16 +206,16 @@ struct MessageRowView: View {
             VStack(spacing: 8) {
               Text("Add Tag")
                 .font(.headline)
-              
+
               TextField("Tag name", text: $newTag)
                 .textFieldStyle(RoundedBorderTextFieldStyle())
-              
+
               HStack {
                 Button("Cancel") {
                   showingTagInput = false
                   newTag = ""
                 }
-                
+
                 Button("Add") {
                   if !newTag.isEmpty {
                     preference.addTag(newTag, to: message.messageId)
@@ -228,7 +229,7 @@ struct MessageRowView: View {
             .padding()
             .frame(width: 200)
           }
-          
+
           Button(action: {
             withAnimation(AnimationConstants.springQuick) {
               preference.toggleFavoriteMessage(message.messageId)
@@ -266,13 +267,13 @@ struct MessageRowView: View {
       if message.isExpanded && !message.replies.isEmpty {
         ForEach(message.replies.sorted { $0.seqId < $1.seqId }) { reply in
           MessageRowView(
-            message: reply, 
-            depth: depth + 1, 
+            message: reply,
+            depth: depth + 1,
             selectedMessage: $selectedMessage,
             preference: preference
           )
-            .padding(.leading, CGFloat(min(depth + 1, 6)) * 16)
-            .transition(AnimationConstants.slideFromLeading)
+          .padding(.leading, CGFloat(min(depth + 1, 6)) * 16)
+          .transition(AnimationConstants.slideFromLeading)
         }
       }
     }

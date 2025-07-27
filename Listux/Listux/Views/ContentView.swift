@@ -30,7 +30,7 @@ struct ContentView: View {
   @Query private var preferences: [Preference]
 
   @State private var settingsManager = SettingsManager.shared
-  
+
   private var preference: Preference {
     if let existing = preferences.first {
       return existing
@@ -40,28 +40,28 @@ struct ContentView: View {
       return new
     }
   }
-  
+
   private var sortedMailingLists: [MailingList] {
     let pinned = mailingLists.filter { $0.isPinned }.sorted { $0.name < $1.name }
     let unpinned = mailingLists.filter { !$0.isPinned }.sorted { $0.name < $1.name }
     return pinned + unpinned
   }
-  
+
   private var taggedMessages: [Message] {
     guard let tag = selectedTag else { return [] }
-    
+
     let messageIds: [String]
     if tag == "Untagged" {
       messageIds = preference.getUntaggedMessages()
     } else {
       messageIds = preference.getMessagesWithTag(tag)
     }
-    
+
     var allMessages: [Message] = []
     for list in mailingLists {
       allMessages.append(contentsOf: list.messages)
     }
-    
+
     return allMessages.filter { message in
       messageIds.contains(message.messageId)
     }.sorted { $0.timestamp > $1.timestamp }
@@ -142,165 +142,161 @@ struct ContentView: View {
   }
 
   #if os(macOS)
-  var body: some View {
-    NavigationSplitView {
-      SidebarView(
-        selectedSidebarTab: $selectedSidebarTab,
-        selectedList: $selectedList,
-        selectedTag: $selectedTag,
-        mailingLists: mailingLists,
-        isLoading: isLoadingMailingLists,
-        searchText: $mailingListSearchText,
-        onSelectList: { list in
-          loadMessagesForList(list)
-        },
-        onSelectTag: { tag in
-          selectedTag = tag
-          selectedMessage = nil
-        }
-      )
-      .frame(minWidth: 240, idealWidth: 380, maxWidth: .infinity)
-    } content: {
-      VStack(spacing: 0) {
-        if selectedSidebarTab == .favorites {
-          if let tag = selectedTag {
-            TaggedMessagesView(
-              tag: tag,
-              messages: taggedMessages,
-              selectedMessage: $selectedMessage,
-              preference: preference
-            )
+    var body: some View {
+      NavigationSplitView {
+        SidebarView(
+          selectedSidebarTab: $selectedSidebarTab,
+          selectedList: $selectedList,
+          selectedTag: $selectedTag,
+          mailingLists: mailingLists,
+          isLoading: isLoadingMailingLists,
+          searchText: $mailingListSearchText,
+          onSelectList: { list in
+            loadMessagesForList(list)
+          },
+          onSelectTag: { tag in
+            selectedTag = tag
+            selectedMessage = nil
+          }
+        )
+        .frame(minWidth: 240, idealWidth: 380, maxWidth: .infinity)
+      } content: {
+        VStack(spacing: 0) {
+          if selectedSidebarTab == .favorites {
+            if let tag = selectedTag {
+              TaggedMessagesView(
+                tag: tag,
+                messages: taggedMessages,
+                selectedMessage: $selectedMessage,
+                preference: preference
+              )
+            } else {
+              Text("Select a tag to view messages")
+                .foregroundColor(.secondary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
           } else {
-            Text("Select a tag to view messages")
-              .foregroundColor(.secondary)
-              .frame(maxWidth: .infinity, maxHeight: .infinity)
-          }
-        } else {
-          if selectedList != nil {
-            PaginationView(
+            if selectedList != nil {
+              PaginationView(
+                currentPage: currentPage,
+                hasNext: messagePageLinks.next != nil,
+                hasPrev: messagePageLinks.prev != nil,
+                hasLatest: messagePageLinks.latest != nil,
+                onPrev: {
+                  if let prev = messagePageLinks.prev { onPageLinkTapped(url: prev) }
+                },
+                onNext: {
+                  if let next = messagePageLinks.next { onPageLinkTapped(url: next) }
+                },
+                onLatest: {
+                  if let latest = messagePageLinks.latest { onPageLinkTapped(url: latest) }
+                }
+              )
+              .frame(maxWidth: .infinity)
+              .padding(.vertical, 8)
+              .background(Color(.windowBackgroundColor).opacity(0.95))
+            }
+            Divider()
+            MessageListView(
+              selectedSidebarTab: selectedSidebarTab, selectedList: selectedList,
+              selectedMessage: $selectedMessage,
+              isLoading: isLoadingMessages,
+              nextURL: messagePageLinks.next,
+              prevURL: messagePageLinks.prev,
+              latestURL: messagePageLinks.latest,
               currentPage: currentPage,
-              hasNext: messagePageLinks.next != nil,
-              hasPrev: messagePageLinks.prev != nil,
-              hasLatest: messagePageLinks.latest != nil,
-              onPrev: {
-                if let prev = messagePageLinks.prev { onPageLinkTapped(url: prev) }
-              },
-              onNext: {
-                if let next = messagePageLinks.next { onPageLinkTapped(url: next) }
-              },
-              onLatest: {
-                if let latest = messagePageLinks.latest { onPageLinkTapped(url: latest) }
-              }
+              onPageLinkTapped: onPageLinkTapped
             )
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
-            .background(Color(.windowBackgroundColor).opacity(0.95))
+            .frame(minWidth: 300, idealWidth: 700, maxWidth: .infinity, maxHeight: .infinity)
           }
-          Divider()
-          MessageListView(
-            selectedSidebarTab: selectedSidebarTab, selectedList: selectedList,
-            selectedMessage: $selectedMessage,
-            isLoading: isLoadingMessages,
-            nextURL: messagePageLinks.next,
-            prevURL: messagePageLinks.prev,
-            latestURL: messagePageLinks.latest,
-            currentPage: currentPage,
-            onPageLinkTapped: onPageLinkTapped
-          )
-          .frame(minWidth: 300, idealWidth: 700, maxWidth: .infinity, maxHeight: .infinity)
         }
+        .animation(Animation.userPreference, value: selectedSidebarTab)
+        .animation(Animation.userPreference, value: selectedTag)
+      } detail: {
+        MessageDetailView(selectedMessage: selectedMessage)
+          .frame(minWidth: 400, idealWidth: 600, maxWidth: .infinity)
       }
-      .animation(Animation.userPreference, value: selectedSidebarTab)
-      .animation(Animation.userPreference, value: selectedTag)
-    } detail: {
-      MessageDetailView(selectedMessage: selectedMessage)
-        .frame(minWidth: 400, idealWidth: 600, maxWidth: .infinity)
-    }
-    .onChange(of: selectedList) {
-      withAnimation(Animation.userPreference) {
-        selectedMessage = nil
-        messagePageLinks = (nil, nil, nil)
-        currentPage = 1
-      }
-    }
-    .onChange(of: selectedTag) {
-      withAnimation(Animation.userPreference) {
-        selectedMessage = nil
-      }
-    }
-    .onChange(of: settingsManager.shouldOpenSettings) { _, newValue in
-      if newValue {
+      .onChange(of: selectedList) {
         withAnimation(Animation.userPreference) {
-          selectedSidebarTab = .settings
-        }
-        settingsManager.shouldOpenSettings = false
-      }
-    }
-    .onAppear {
-      settingsManager.onDataCleared = {
-        withAnimation(Animation.userPreference) {
-          selectedTag = nil
           selectedMessage = nil
+          messagePageLinks = (nil, nil, nil)
+          currentPage = 1
+        }
+      }
+      .onChange(of: selectedTag) {
+        withAnimation(Animation.userPreference) {
+          selectedMessage = nil
+        }
+      }
+      .onChange(of: settingsManager.shouldOpenSettings) { _, newValue in
+        if newValue {
+          withAnimation(Animation.userPreference) {
+            selectedSidebarTab = .settings
+          }
+          settingsManager.shouldOpenSettings = false
+        }
+      }
+      .onAppear {
+        settingsManager.onDataCleared = {
+          withAnimation(Animation.userPreference) {
+            selectedTag = nil
+            selectedMessage = nil
+            selectedSidebarTab = .lists
+          }
+        }
+      }
+      .task {
+        loadMailingLists()
+      }
+    }
+  #endif
+
+  #if os(iOS)
+    var body: some View {
+      TabView(selection: $selectedSidebarTab) {
+        NavigationStack {
+          MailingListView(
+            mailingLists: sortedMailingLists,
+            isLoading: isLoadingMailingLists,
+            onAppear: {
+              loadMailingLists()
+            }
+          )
+        }
+        .tabItem {
+          Image(systemName: "list.bullet")
+          Text("Lists")
+        }
+        .tag(SidebarTab.lists)
+
+        NavigationStack {
+          FavoritesView(
+            preference: preference,
+            allMailingLists: mailingLists
+          )
+        }
+        .tabItem {
+          Image(systemName: "star")
+          Text("Favorites")
+        }
+        .tag(SidebarTab.favorites)
+
+        NavigationStack {
+          SettingsView()
+            .navigationTitle("Settings")
+            .navigationBarTitleDisplayMode(.large)
+        }
+        .tabItem {
+          Image(systemName: "gear")
+          Text("Settings")
+        }
+        .tag(SidebarTab.settings)
+      }
+      .onAppear {
+        settingsManager.onDataCleared = {
           selectedSidebarTab = .lists
         }
       }
     }
-    .task {
-      loadMailingLists()
-    }
-  }
-  #endif
-
-  #if os(iOS)
-  var body: some View {
-    TabView(selection: $selectedSidebarTab) {
-      NavigationStack {
-        MailingListView(
-          mailingLists: sortedMailingLists,
-          isLoading: isLoadingMailingLists,
-          onAppear: {
-            loadMailingLists()
-          }
-        )
-      }
-      .tabItem {
-        Image(systemName: "list.bullet")
-        Text("Lists")
-      }
-      .tag(SidebarTab.lists)
-
-      NavigationStack {
-        FavoritesView(
-          preference: preference,
-          allMailingLists: mailingLists
-        )
-      }
-      .tabItem {
-        Image(systemName: "star")
-        Text("Favorites")
-      }
-      .tag(SidebarTab.favorites)
-
-      NavigationStack {
-        SettingsView()
-          .navigationTitle("Settings")
-          .navigationBarTitleDisplayMode(.large)
-      }
-      .tabItem {
-        Image(systemName: "gear")
-        Text("Settings")
-      }
-      .tag(SidebarTab.settings)
-    }
-    .onAppear {
-      settingsManager.onDataCleared = {
-        selectedSidebarTab = .lists
-      }
-    }
-  }
   #endif
 }
-
-
-
-

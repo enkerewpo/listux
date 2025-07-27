@@ -7,13 +7,19 @@ struct FavoritesView: View {
 
   var body: some View {
     List {
-      ForEach(preference.getAllTags(), id: \ .self) { tag in
-        NavigationLink(destination: FavoritesMessageView(tag: tag, preference: preference, allMailingLists: allMailingLists)) {
+      ForEach(preference.getAllTags(), id: \.self) { tag in
+        NavigationLink(
+          destination: FavoritesMessageView(
+            tag: tag, preference: preference, allMailingLists: allMailingLists)
+        ) {
           Text(tag)
         }
       }
       if !preference.getUntaggedMessages().isEmpty {
-        NavigationLink(destination: FavoritesMessageView(tag: "Untagged", preference: preference, allMailingLists: allMailingLists)) {
+        NavigationLink(
+          destination: FavoritesMessageView(
+            tag: "Untagged", preference: preference, allMailingLists: allMailingLists)
+        ) {
           Text("Untagged")
         }
       }
@@ -46,10 +52,10 @@ struct FavoritesMessageView: View {
     } else {
       messageIds = preference.getMessagesWithTag(tag)
     }
-    
+
     var messageSet = Set<String>()
     var uniqueMessages: [Message] = []
-    
+
     for list in allMailingLists {
       for message in list.messages {
         if messageIds.contains(message.messageId) && !messageSet.contains(message.messageId) {
@@ -58,7 +64,7 @@ struct FavoritesMessageView: View {
         }
       }
     }
-    
+
     messages = uniqueMessages.sorted { $0.timestamp > $1.timestamp }
   }
-} 
+}
