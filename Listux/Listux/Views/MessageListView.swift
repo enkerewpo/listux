@@ -1,10 +1,5 @@
 import SwiftUI
 import SwiftData
-#if os(iOS)
-import UIKit
-#elseif os(macOS)
-import AppKit
-#endif
 
 struct MessageListView: View {
   var selectedSidebarTab: SidebarTab
@@ -160,12 +155,8 @@ struct MessageRowView: View {
               Spacer()
               
               Button(action: {
-                #if os(iOS)
-                UIPasteboard.general.string = message.messageId
-                #elseif os(macOS)
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(message.messageId, forType: .string)
-                #endif
               }) {
                 Image(systemName: "doc.on.doc")
                   .font(.system(size: 8))

@@ -27,17 +27,26 @@ private struct SidebarTabButton: View {
 
   var body: some View {
     Button(action: action) {
-      Image(systemName: tab.systemImage)
-        .font(.system(size: 16, weight: .regular))
-        .foregroundColor(isSelected ? .accentColor : (isHovered ? .primary : .secondary))
-        .padding(4)
-        .frame(width: 28, height: 28)
-        .background(
-          RoundedRectangle(cornerRadius: 6)
-            .fill(isSelected ? Color.accentColor.opacity(0.18) : Color.clear)
-            .scaleEffect(isHovered ? 1.05 : 1.0)
-        )
-        .help(tab.label)
+      HStack(spacing: 8) {
+        Image(systemName: tab.systemImage)
+          .font(.system(size: 14, weight: .medium))
+          .foregroundColor(isSelected ? .accentColor : .secondary)
+        Text(tab.label)
+          .font(.system(size: 13, weight: .medium))
+          .foregroundColor(isSelected ? .primary : .secondary)
+      }
+      .padding(.horizontal, 12)
+      .padding(.vertical, 8)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .background(
+        RoundedRectangle(cornerRadius: 8)
+          .fill(isSelected ? Color.accentColor.opacity(0.15) : Color.clear)
+          .overlay(
+            RoundedRectangle(cornerRadius: 8)
+              .stroke(isSelected ? Color.accentColor.opacity(0.3) : Color.clear, lineWidth: 1)
+          )
+      )
+      .scaleEffect(isHovered && !isSelected ? 1.02 : 1.0)
     }
     .buttonStyle(.plain)
     .onHover { hovering in
@@ -45,8 +54,8 @@ private struct SidebarTabButton: View {
         isHovered = hovering
       }
     }
-    .scaleEffect(isHovered ? AnimationConstants.hoverScale : 1.0)
     .animation(Animation.userPreferenceQuick, value: isHovered)
+    .animation(Animation.userPreferenceQuick, value: isSelected)
   }
 }
 
@@ -100,8 +109,8 @@ struct SidebarView: View {
 
   var body: some View {
     VStack(spacing: 0) {
-      // Compact Xcode-style icon row
-      HStack(spacing: 6) {
+      // Navigation tabs with improved design
+      VStack(spacing: 4) {
         ForEach(SidebarTab.allCases, id: \.self) { tab in
           SidebarTabButton(tab: tab, isSelected: selectedSidebarTab == tab) {
             withAnimation(Animation.userPreference) {
@@ -114,26 +123,14 @@ struct SidebarView: View {
           }
         }
       }
-      .padding(.vertical, 4)
-      .frame(maxWidth: .infinity)
+      .padding(.horizontal, 12)
+      .padding(.vertical, 8)
+
+      Divider()
+        .padding(.horizontal, 12)
 
       // Content area
       VStack(spacing: 0) {
-        // Section header
-        HStack {
-          Text(selectedSidebarTab.label)
-            .font(.headline)
-            .foregroundColor(.primary)
-            #if os(macOS)
-              .background(Color(.windowBackgroundColor).opacity(0))
-            #else
-              .background(Color(.systemBackground).opacity(0))
-            #endif
-          Spacer()
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-
         // Content
         Group {
           switch selectedSidebarTab {
@@ -144,13 +141,28 @@ struct SidebarView: View {
                 .transition(AnimationConstants.fadeInOut)
             } else {
               VStack(spacing: 0) {
-                // Search bar with animation
-                TextField("Search mailing lists", text: $searchText)
-                  .textFieldStyle(RoundedBorderTextFieldStyle())
-                  .padding([.horizontal, .top], 8)
-                  .focused($isSearchFocused)
-                  .scaleEffect(isSearchFocused ? AnimationConstants.selectedScale : 1.0)
-                  .animation(Animation.userPreferenceQuick, value: isSearchFocused)
+                // Search bar with improved spacing
+                HStack {
+                  Image(systemName: "magnifyingglass")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+                  TextField("Search mailing lists", text: $searchText)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 13))
+                    .focused($isSearchFocused)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(
+                  RoundedRectangle(cornerRadius: 8)
+                    .fill(Color(.controlBackgroundColor))
+                    .overlay(
+                      RoundedRectangle(cornerRadius: 8)
+                        .stroke(isSearchFocused ? Color.accentColor.opacity(0.5) : Color.clear, lineWidth: 1)
+                    )
+                )
+                .padding(.horizontal, 12)
+                .padding(.bottom, 8)
 
                 // Filtered list
                 List(selection: $selectedList) {
@@ -181,10 +193,16 @@ struct SidebarView: View {
           case .favorites:
             VStack(spacing: 0) {
               if allTags.isEmpty {
-                Text("No favorite messages")
-                  .foregroundColor(.secondary)
-                  .frame(maxWidth: .infinity, maxHeight: .infinity)
-                  .transition(AnimationConstants.fadeInOut)
+                VStack(spacing: 8) {
+                  Image(systemName: "star")
+                    .font(.system(size: 24))
+                    .foregroundColor(.secondary)
+                  Text("No favorite messages")
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .transition(AnimationConstants.fadeInOut)
               } else {
                 List(selection: $selectedTag) {
                   ForEach(allTags, id: \.self) { tag in
@@ -218,8 +236,12 @@ struct SidebarView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
       }
     }
-    .frame(minWidth: 240, idealWidth: 380, maxWidth: .infinity, maxHeight: .infinity)
+    .frame(minWidth: 240, idealWidth: 320, maxWidth: .infinity, maxHeight: .infinity)
+    #if os(macOS)
+    .background(Color(NSColor.controlBackgroundColor))
+    #else
     .background(.ultraThinMaterial)
+    #endif
   }
 }
 
@@ -232,20 +254,20 @@ struct MailingListItemView: View {
   @State private var isHovered: Bool = false
 
   var body: some View {
-    HStack {
+    HStack(spacing: 8) {
       // Pin indicator
       if isPinned {
         Image(systemName: "pin.fill")
-          .font(.system(size: 8))
+          .font(.system(size: 10))
           .foregroundColor(.orange)
       }
       
       VStack(alignment: .leading, spacing: 2) {
         Text(list.name)
-          .font(.system(size: 12, weight: .regular))
+          .font(.system(size: 13, weight: .medium))
           .lineLimit(1)
         Text(list.desc)
-          .font(.system(size: 10))
+          .font(.system(size: 11))
           .foregroundColor(.secondary)
           .lineLimit(1)
       }
@@ -255,24 +277,26 @@ struct MailingListItemView: View {
       // Pin toggle button
       Button(action: onPinToggle) {
         Image(systemName: isPinned ? "pin.fill" : "pin")
-          .font(.system(size: 10))
+          .font(.system(size: 11))
           .foregroundColor(isPinned ? .orange : .secondary)
           .scaleEffect(isPinned ? AnimationConstants.favoriteScale : 1.0)
       }
       .buttonStyle(.plain)
       .animation(AnimationConstants.springQuick, value: isPinned)
     }
-    .padding(.vertical, 4)
+    .padding(.horizontal, 12)
+    .padding(.vertical, 6)
     .background(
-      RoundedRectangle(cornerRadius: 3)
+      RoundedRectangle(cornerRadius: 6)
         .fill(
           isSelected
-            ? Color.accentColor.opacity(0.2)
-            : (isHovered ? Color.primary.opacity(0.1) : Color.clear)
+            ? Color.accentColor.opacity(0.15)
+            : (isHovered ? Color.primary.opacity(0.08) : Color.clear)
         )
-        .scaleEffect(
-          isSelected
-            ? AnimationConstants.selectedScale : (isHovered ? AnimationConstants.hoverScale : 1.0))
+        .overlay(
+          RoundedRectangle(cornerRadius: 6)
+            .stroke(isSelected ? Color.accentColor.opacity(0.3) : Color.clear, lineWidth: 1)
+        )
     )
     .onTapGesture(perform: onSelect)
     .onHover { hovering in
@@ -293,34 +317,36 @@ struct TagItemView: View {
   @State private var isHovered: Bool = false
 
   var body: some View {
-    HStack {
+    HStack(spacing: 8) {
       Image(systemName: tag == "Untagged" ? "tag.slash" : "tag")
-        .font(.system(size: 10))
+        .font(.system(size: 12))
         .foregroundColor(tag == "Untagged" ? .secondary : .blue)
       
       VStack(alignment: .leading, spacing: 2) {
         Text(tag)
-          .font(.system(size: 12, weight: .regular))
+          .font(.system(size: 13, weight: .medium))
           .lineLimit(1)
         Text("\(messageCount) message\(messageCount == 1 ? "" : "s")")
-          .font(.system(size: 10))
+          .font(.system(size: 11))
           .foregroundColor(.secondary)
           .lineLimit(1)
       }
       
       Spacer()
     }
-    .padding(.vertical, 4)
+    .padding(.horizontal, 12)
+    .padding(.vertical, 6)
     .background(
-      RoundedRectangle(cornerRadius: 3)
+      RoundedRectangle(cornerRadius: 6)
         .fill(
           isSelected
-            ? Color.accentColor.opacity(0.2)
-            : (isHovered ? Color.primary.opacity(0.1) : Color.clear)
+            ? Color.accentColor.opacity(0.15)
+            : (isHovered ? Color.primary.opacity(0.08) : Color.clear)
         )
-        .scaleEffect(
-          isSelected
-            ? AnimationConstants.selectedScale : (isHovered ? AnimationConstants.hoverScale : 1.0))
+        .overlay(
+          RoundedRectangle(cornerRadius: 6)
+            .stroke(isSelected ? Color.accentColor.opacity(0.3) : Color.clear, lineWidth: 1)
+        )
     )
     .onTapGesture(perform: onSelect)
     .onHover { hovering in
