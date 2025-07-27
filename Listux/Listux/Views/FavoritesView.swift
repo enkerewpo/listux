@@ -8,12 +8,12 @@ struct FavoritesView: View {
   var body: some View {
     List {
       ForEach(preference.getAllTags(), id: \ .self) { tag in
-        NavigationLink(destination: FavoritesMessageListView(tag: tag, preference: preference, allMailingLists: allMailingLists)) {
+        NavigationLink(destination: FavoritesMessageView(tag: tag, preference: preference, allMailingLists: allMailingLists)) {
           Text(tag)
         }
       }
       if !preference.getUntaggedMessages().isEmpty {
-        NavigationLink(destination: FavoritesMessageListView(tag: "Untagged", preference: preference, allMailingLists: allMailingLists)) {
+        NavigationLink(destination: FavoritesMessageView(tag: "Untagged", preference: preference, allMailingLists: allMailingLists)) {
           Text("Untagged")
         }
       }
@@ -22,25 +22,18 @@ struct FavoritesView: View {
   }
 }
 
-struct FavoritesMessageListView: View {
+struct FavoritesMessageView: View {
   let tag: String
   let preference: Preference
   let allMailingLists: [MailingList]
   @State private var messages: [Message] = []
 
   var body: some View {
-    List(messages, id: \ .messageId) { message in
-      NavigationLink(destination: MessageDetailView(selectedMessage: message)) {
-        VStack(alignment: .leading) {
-          Text(message.subject)
-            .font(.headline)
-          Text(message.timestamp, style: .date)
-            .font(.caption)
-            .foregroundColor(.secondary)
-        }
-      }
-    }
-    .navigationTitle(tag)
+    SimpleMessageListView(
+      messages: messages,
+      title: tag,
+      isLoading: false
+    )
     .onAppear {
       loadMessages()
     }
@@ -53,11 +46,19 @@ struct FavoritesMessageListView: View {
     } else {
       messageIds = preference.getMessagesWithTag(tag)
     }
-    var allMessages: [Message] = []
+    
+    var messageSet = Set<String>()
+    var uniqueMessages: [Message] = []
+    
     for list in allMailingLists {
-      allMessages.append(contentsOf: list.messages)
+      for message in list.messages {
+        if messageIds.contains(message.messageId) && !messageSet.contains(message.messageId) {
+          messageSet.insert(message.messageId)
+          uniqueMessages.append(message)
+        }
+      }
     }
-    messages = allMessages.filter { messageIds.contains($0.messageId) }
-      .sorted { $0.timestamp > $1.timestamp }
+    
+    messages = uniqueMessages.sorted { $0.timestamp > $1.timestamp }
   }
 } 

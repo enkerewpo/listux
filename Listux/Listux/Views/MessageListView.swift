@@ -1,5 +1,8 @@
 import SwiftUI
 import SwiftData
+#if os(iOS)
+import UIKit
+#endif
 
 struct MessageListView: View {
   var selectedSidebarTab: SidebarTab
@@ -98,6 +101,8 @@ struct MessageRowView: View {
   @Binding var selectedMessage: Message?
   let preference: Preference
   @State private var isHovered: Bool = false
+  @State private var showingTagInput: Bool = false
+  @State private var newTag: String = ""
   
   private var isFavorite: Bool {
     preference.isFavoriteMessage(message.messageId)
@@ -159,7 +164,7 @@ struct MessageRowView: View {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(message.messageId, forType: .string)
                 #else
-                // TODO: Implement copy to clipboard for iOS
+                UIPasteboard.general.string = message.messageId
                 #endif
               }) {
                 Image(systemName: "doc.on.doc")
@@ -180,18 +185,62 @@ struct MessageRowView: View {
 
         Spacer()
 
-        // Favorite button
-        Button(action: {
-          withAnimation(AnimationConstants.springQuick) {
-            preference.toggleFavoriteMessage(message.messageId)
+        // Tag management and favorite button
+        HStack(spacing: 4) {
+          ForEach(preference.getTags(for: message.messageId), id: \.self) { tag in
+            TagChipView(tag: tag) {
+              preference.removeTag(tag, from: message.messageId)
+            }
           }
-        }) {
-          Image(systemName: isFavorite ? "star.fill" : "star")
-            .foregroundColor(isFavorite ? .yellow : .secondary)
-            .scaleEffect(isFavorite ? AnimationConstants.favoriteScale : 1.0)
+          
+          Button(action: {
+            showingTagInput = true
+          }) {
+            Image(systemName: "plus.circle")
+              .font(.system(size: 10))
+              .foregroundColor(.blue)
+          }
+          .buttonStyle(.plain)
+          .popover(isPresented: $showingTagInput) {
+            VStack(spacing: 8) {
+              Text("Add Tag")
+                .font(.headline)
+              
+              TextField("Tag name", text: $newTag)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+              
+              HStack {
+                Button("Cancel") {
+                  showingTagInput = false
+                  newTag = ""
+                }
+                
+                Button("Add") {
+                  if !newTag.isEmpty {
+                    preference.addTag(newTag, to: message.messageId)
+                    newTag = ""
+                  }
+                  showingTagInput = false
+                }
+                .disabled(newTag.isEmpty)
+              }
+            }
+            .padding()
+            .frame(width: 200)
+          }
+          
+          Button(action: {
+            withAnimation(AnimationConstants.springQuick) {
+              preference.toggleFavoriteMessage(message.messageId)
+            }
+          }) {
+            Image(systemName: isFavorite ? "star.fill" : "star")
+              .foregroundColor(isFavorite ? .yellow : .secondary)
+              .scaleEffect(isFavorite ? AnimationConstants.favoriteScale : 1.0)
+          }
+          .buttonStyle(.plain)
+          .animation(AnimationConstants.springQuick, value: isFavorite)
         }
-        .buttonStyle(.plain)
-        .animation(AnimationConstants.springQuick, value: isFavorite)
       }
       .padding(.vertical, 4)
       .contentShape(Rectangle())

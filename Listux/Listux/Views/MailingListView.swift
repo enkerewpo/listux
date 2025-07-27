@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 struct MailingListView: View {
   let mailingLists: [MailingList]
@@ -9,7 +10,7 @@ struct MailingListView: View {
 
   var body: some View {
     List(mailingLists, id: \ .id) { list in
-      NavigationLink(destination: MessageListViewForList(mailingList: list)) {
+      NavigationLink(destination: MailingListMessageView(mailingList: list)) {
         VStack(alignment: .leading) {
           Text(list.name)
             .font(.headline)
@@ -31,35 +32,32 @@ struct MailingListView: View {
   }
 }
 
-struct MessageListViewForList: View {
+struct MailingListMessageView: View {
   let mailingList: MailingList
-  @State private var selectedMessage: Message? = nil
   @State private var isLoading: Bool = false
   @State private var messages: [Message] = []
+  @Environment(\.modelContext) private var modelContext
+  @Query private var preferences: [Preference]
+  
+  private var preference: Preference {
+    if let existing = preferences.first {
+      return existing
+    } else {
+      let new = Preference()
+      modelContext.insert(new)
+      return new
+    }
+  }
 
   var body: some View {
-    List(messages, id: \ .messageId) { message in
-      NavigationLink(destination: MessageDetailView(selectedMessage: message)) {
-        VStack(alignment: .leading) {
-          Text(message.subject)
-            .font(.headline)
-          Text(message.timestamp, style: .date)
-            .font(.caption)
-            .foregroundColor(.secondary)
-        }
-      }
-    }
-    .navigationTitle(mailingList.name)
+    SimpleMessageListView(
+      messages: messages,
+      title: mailingList.name,
+      isLoading: isLoading
+    )
     .onAppear {
       loadMessages()
     }
-    .overlay(
-      Group {
-        if isLoading {
-          ProgressView("Loading...")
-        }
-      }
-    )
   }
 
   private func loadMessages() {

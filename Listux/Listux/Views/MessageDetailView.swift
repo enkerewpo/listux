@@ -1,11 +1,16 @@
 import SwiftUI
 import SwiftData
+#if os(iOS)
+import UIKit
+#endif
 
 struct MessageDetailView: View {
   var selectedMessage: Message?
   @State private var messageHtml: String = ""
   @State private var isLoadingHtml: Bool = false
   @State private var isFavoriteAnimating: Bool = false
+  @State private var showingTagInput: Bool = false
+  @State private var newTag: String = ""
   @Environment(\.modelContext) private var modelContext
   @Query private var preferences: [Preference]
   
@@ -64,10 +69,29 @@ struct MessageDetailView: View {
 
           // Message details section
           VStack(alignment: .leading, spacing: 8) {
-            Text("Message ID: \(msg.messageId)")
-              .font(.caption)
-              .foregroundColor(.secondary)
-              .transition(AnimationConstants.slideFromLeading)
+            HStack {
+              Text("Message ID: \(msg.messageId)")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .transition(AnimationConstants.slideFromLeading)
+              
+              Spacer()
+              
+              Button(action: {
+                #if os(macOS)
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(msg.messageId, forType: .string)
+                #else
+                UIPasteboard.general.string = msg.messageId
+                #endif
+              }) {
+                Image(systemName: "doc.on.doc")
+                  .font(.caption)
+                  .foregroundColor(.blue)
+              }
+              .buttonStyle(.plain)
+              .help("Copy Message ID")
+            }
 
             Text("Sequence ID: \(msg.seqId)")
               .font(.caption)
@@ -80,6 +104,84 @@ struct MessageDetailView: View {
               .lineLimit(2)
               .truncationMode(.middle)
               .transition(AnimationConstants.slideFromLeading)
+          }
+          .transition(AnimationConstants.slideFromLeading)
+
+          // Tag management section
+          VStack(alignment: .leading, spacing: 8) {
+            HStack {
+              Text("Tags")
+                .font(.headline)
+                .transition(AnimationConstants.slideFromLeading)
+              
+              Spacer()
+              
+              Button(action: {
+                showingTagInput = true
+              }) {
+                Image(systemName: "plus.circle")
+                  .font(.caption)
+                  .foregroundColor(.blue)
+              }
+              .buttonStyle(.plain)
+              .popover(isPresented: $showingTagInput) {
+                VStack(spacing: 8) {
+                  Text("Add Tag")
+                    .font(.headline)
+                  
+                  TextField("Tag name", text: $newTag)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                  
+                  HStack {
+                    Button("Cancel") {
+                      showingTagInput = false
+                      newTag = ""
+                    }
+                    
+                    Button("Add") {
+                      if !newTag.isEmpty {
+                        preference.addTag(newTag, to: msg.messageId)
+                        newTag = ""
+                      }
+                      showingTagInput = false
+                    }
+                    .disabled(newTag.isEmpty)
+                  }
+                }
+                .padding()
+                .frame(width: 200)
+              }
+            }
+            
+            if !preference.getTags(for: msg.messageId).isEmpty {
+              LazyVGrid(columns: [GridItem(.adaptive(minimum: 100))], spacing: 4) {
+                ForEach(preference.getTags(for: msg.messageId), id: \.self) { tag in
+                  HStack {
+                    Text(tag)
+                      .font(.caption)
+                      .padding(.horizontal, 8)
+                      .padding(.vertical, 4)
+                      .background(
+                        RoundedRectangle(cornerRadius: 4)
+                          .fill(Color.blue.opacity(0.2))
+                      )
+                    
+                    Button(action: {
+                      preference.removeTag(tag, from: msg.messageId)
+                    }) {
+                      Image(systemName: "xmark.circle.fill")
+                        .font(.caption2)
+                        .foregroundColor(.red)
+                    }
+                    .buttonStyle(.plain)
+                  }
+                }
+              }
+            } else {
+              Text("No tags")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            }
           }
           .transition(AnimationConstants.slideFromLeading)
 
