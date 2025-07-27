@@ -155,8 +155,12 @@ struct MessageRowView: View {
               Spacer()
               
               Button(action: {
+                #if os(macOS)
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(message.messageId, forType: .string)
+                #else
+                // TODO: Implement copy to clipboard for iOS
+                #endif
               }) {
                 Image(systemName: "doc.on.doc")
                   .font(.system(size: 8))

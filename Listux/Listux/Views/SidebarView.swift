@@ -130,6 +130,7 @@ struct SidebarView: View {
         .padding(.horizontal, 12)
 
       // Content area
+      #if os(macOS)
       VStack(spacing: 0) {
         // Content
         Group {
@@ -235,6 +236,9 @@ struct SidebarView: View {
         .animation(Animation.userPreference, value: selectedSidebarTab)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
       }
+      #else
+      // TODO: Implement sidebar for iOS
+      #endif
     }
     .frame(minWidth: 240, idealWidth: 320, maxWidth: .infinity, maxHeight: .infinity)
     #if os(macOS)
