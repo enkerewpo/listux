@@ -9,6 +9,11 @@ import SwiftData
 import SwiftSoup
 import SwiftUI
 import os
+#if os(iOS)
+import UIKit
+#elseif os(macOS)
+import AppKit
+#endif
 
 struct ContentView: View {
   @Environment(\.modelContext) private var modelContext
@@ -58,14 +63,22 @@ struct ContentView: View {
       allMessages.append(contentsOf: list.messages)
     }
     
-    return allMessages.filter { message in
+    // Filter messages by message IDs
+    let filteredMessages = allMessages.filter { message in
       messageIds.contains(message.messageId)
-    }.sorted { $0.timestamp > $1.timestamp }
+    }
+    
+    // Sort by timestamp in descending order
+    return filteredMessages.sorted { $0.timestamp > $1.timestamp }
   }
 
   var body: some View {
-    // Define the pagination handler closure so it can be used in both the toolbox bar and MessageListView
-    let onPageLinkTapped: (String) -> Void = { url in
+    mainContentView
+  }
+  
+  // Define the pagination handler closure so it can be used in both the toolbox bar and MessageListView
+  private var onPageLinkTapped: (String) -> Void {
+    return { url in
       guard let list = selectedList else { return }
       if let next = messagePageLinks.next, url == next {
         currentPage += 1
@@ -82,8 +95,8 @@ struct ContentView: View {
             fullUrl = url
           } else {
             let base = LORE_LINUX_BASE_URL.value + "/"
-            fullUrl =
-              base + list.name + "/" + url.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            let trimmedUrl = url.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            fullUrl = base + list.name + "/" + trimmedUrl
           }
           let html = try await NetworkService.shared.fetchMessageRaw(url: fullUrl)
           let result = Parser.parseMsgsFromListPage(from: html, mailingList: list)
@@ -100,152 +113,13 @@ struct ContentView: View {
         }
       }
     }
-
+  }
+  
+  private var mainContentView: some View {
     NavigationSplitView {
-      SidebarView(
-        selectedSidebarTab: $selectedSidebarTab,
-        selectedList: $selectedList,
-        selectedTag: $selectedTag,
-        mailingLists: mailingLists,
-        isLoading: isLoadingMailingLists,
-        searchText: $mailingListSearchText,
-        onSelectList: { list in
-          isLoadingMessages = true
-          currentPage = 1
-          Task {
-            do {
-              let html = try await NetworkService.shared.fetchListPage(list.name)
-              let result = Parser.parseMsgsFromListPage(from: html, mailingList: list)
-              await MainActor.run {
-                list.orderedMessages = result.messages
-                messagePageLinks = (result.nextURL, result.prevURL, result.latestURL)
-                isLoadingMessages = false
-              }
-            } catch {
-              print("Failed to load messages for list \(list.name): \(error)")
-              await MainActor.run {
-                isLoadingMessages = false
-              }
-            }
-          }
-        },
-        onSelectTag: { tag in
-          selectedTag = tag
-          selectedMessage = nil
-        }
-      )
-      .frame(minWidth: 240, idealWidth: 380, maxWidth: .infinity)
+      sidebarContent
     } content: {
-      VStack(spacing: 0) {
-        // Show different content based on selected tab
-        if selectedSidebarTab == .favorites {
-          // Favorites view - show tagged messages
-          if let tag = selectedTag {
-            VStack(spacing: 0) {
-              // Header showing selected tag
-              HStack {
-                Text("Tag: \(tag)")
-                  .font(.headline)
-                  .foregroundColor(.primary)
-                Spacer()
-                Text("\(taggedMessages.count) message\(taggedMessages.count == 1 ? "" : "s")")
-                  .font(.subheadline)
-                  .foregroundColor(.secondary)
-              }
-              .padding(.horizontal, 16)
-              .padding(.vertical, 8)
-              .background(Color(.windowBackgroundColor).opacity(0.95))
-              
-              Divider()
-              
-              // Tagged messages list
-              if taggedMessages.isEmpty {
-                Text("No messages with tag '\(tag)'")
-                  .foregroundColor(.secondary)
-                  .frame(maxWidth: .infinity, maxHeight: .infinity)
-              } else {
-                List(selection: $selectedMessage) {
-                  ForEach(taggedMessages, id: \.messageId) { message in
-                    TaggedMessageRowView(message: message, preference: preference, selectedMessage: $selectedMessage)
-                      .onTapGesture {
-                        withAnimation(Animation.userPreferenceQuick) {
-                          selectedMessage = message
-                        }
-                      }
-                  }
-                }
-                .listStyle(.inset)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-              }
-            }
-          } else {
-            Text("Select a tag to view messages")
-              .foregroundColor(.secondary)
-              .frame(maxWidth: .infinity, maxHeight: .infinity)
-          }
-        } else {
-          // Lists view - show normal message list with pagination
-          HStack {
-            if selectedList != nil {
-              HStack(spacing: 24) {
-                PaginationButton(
-                  systemName: "chevron.left",
-                  help: "Prev (Newer)",
-                  isEnabled: messagePageLinks.prev != nil
-                ) {
-                  if let prev = messagePageLinks.prev { onPageLinkTapped(prev) }
-                }
-
-                PaginationButton(
-                  systemName: "arrow.left.to.line",
-                  help: "First Page",
-                  isEnabled: messagePageLinks.latest != nil
-                ) {
-                  if let latest = messagePageLinks.latest { onPageLinkTapped(latest) }
-                }
-
-                Text("Page \(currentPage)")
-                  .font(.subheadline)
-                  .foregroundColor(.secondary)
-                  .frame(minWidth: 60)
-                  .transition(AnimationConstants.fadeInOut)
-                  .animation(Animation.userPreferenceQuick, value: currentPage)
-
-                PaginationButton(
-                  systemName: "chevron.right",
-                  help: "Next (Older)",
-                  isEnabled: messagePageLinks.next != nil
-                ) {
-                  if let next = messagePageLinks.next { onPageLinkTapped(next) }
-                }
-              }
-              .padding(.trailing, 16)
-              .transition(AnimationConstants.slideFromTop)
-            }
-          }
-          .frame(maxWidth: .infinity)
-          .padding(.vertical, 8)
-          #if os(macOS)
-            .background(Color(.windowBackgroundColor).opacity(0.95))
-          #else
-            .background(Color(.systemBackground).opacity(0.95))
-          #endif
-          Divider()
-          MessageListView(
-            selectedSidebarTab: selectedSidebarTab, selectedList: selectedList,
-            selectedMessage: $selectedMessage,
-            isLoading: isLoadingMessages,
-            nextURL: messagePageLinks.next,
-            prevURL: messagePageLinks.prev,
-            latestURL: messagePageLinks.latest,
-            currentPage: currentPage,
-            onPageLinkTapped: onPageLinkTapped
-          )
-          .frame(minWidth: 300, idealWidth: 700, maxWidth: .infinity, maxHeight: .infinity)
-        }
-      }
-      .animation(Animation.userPreference, value: selectedSidebarTab)
-      .animation(Animation.userPreference, value: selectedTag)
+      contentArea
     } detail: {
       MessageDetailView(selectedMessage: selectedMessage)
         .frame(minWidth: 400, idealWidth: 600, maxWidth: .infinity)
@@ -288,6 +162,193 @@ struct ContentView: View {
       }
     }
   }
+  
+  private var sidebarContent: some View {
+    // Define the onSelectList closure separately to reduce complexity
+    let onSelectListClosure: (MailingList) -> Void = { list in
+      isLoadingMessages = true
+      currentPage = 1
+      Task {
+        do {
+          let html = try await NetworkService.shared.fetchListPage(list.name)
+          let result = Parser.parseMsgsFromListPage(from: html, mailingList: list)
+          await MainActor.run {
+            list.orderedMessages = result.messages
+            messagePageLinks = (result.nextURL, result.prevURL, result.latestURL)
+            isLoadingMessages = false
+          }
+        } catch {
+          print("Failed to load messages for list \(list.name): \(error)")
+          await MainActor.run {
+            isLoadingMessages = false
+          }
+        }
+      }
+    }
+    
+    // Define the onSelectTag closure separately
+    let onSelectTagClosure: (String?) -> Void = { tag in
+      selectedTag = tag
+      selectedMessage = nil
+    }
+    
+    return SidebarView(
+      selectedSidebarTab: $selectedSidebarTab,
+      selectedList: $selectedList,
+      selectedTag: $selectedTag,
+      mailingLists: mailingLists,
+      isLoading: isLoadingMailingLists,
+      searchText: $mailingListSearchText,
+      onSelectList: onSelectListClosure,
+      onSelectTag: onSelectTagClosure
+    )
+    .frame(minWidth: 240, idealWidth: 380, maxWidth: .infinity)
+  }
+  
+  private var contentArea: some View {
+    VStack(spacing: 0) {
+      // Show different content based on selected tab
+      if selectedSidebarTab == .favorites {
+        favoritesContent
+      } else {
+        listsContent
+      }
+    }
+  }
+  
+  private var favoritesContent: some View {
+    // Favorites view - show tagged messages
+    VStack(spacing: 0) {
+      // Header
+      HStack {
+        if let tag = selectedTag {
+          Text("Tag: \(tag)")
+            .font(.headline)
+            .foregroundColor(.primary)
+          Spacer()
+          Text("\(taggedMessages.count) message\(taggedMessages.count == 1 ? "" : "s")")
+            .font(.subheadline)
+            .foregroundColor(.secondary)
+        } else {
+          Text("No Tag Selected")
+            .font(.headline)
+            .foregroundColor(.primary)
+          Spacer()
+        }
+      }
+      .padding(.horizontal, 16)
+      .padding(.vertical, 8)
+      .background(backgroundColor)
+      
+      Divider()
+      
+      // Content area
+      if let tag = selectedTag {
+        if taggedMessages.isEmpty {
+          Text("No messages with tag '\(tag)'")
+            .foregroundColor(.secondary)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+          List(selection: $selectedMessage) {
+            ForEach(taggedMessages, id: \.messageId) { message in
+              TaggedMessageRowView(message: message, preference: preference, selectedMessage: $selectedMessage)
+                .onTapGesture {
+                  withAnimation(Animation.userPreferenceQuick) {
+                    selectedMessage = message
+                  }
+                }
+            }
+          }
+          .listStyle(.inset)
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+      } else {
+        Text("Select a tag to view messages")
+          .foregroundColor(.secondary)
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
+      }
+    }
+  }
+  
+  private var backgroundColor: Color {
+    #if os(macOS)
+    return Color(.windowBackgroundColor).opacity(0.95)
+    #else
+    return Color(.systemBackground).opacity(0.95)
+    #endif
+  }
+  
+  private var listsContent: some View {
+    VStack(spacing: 0) {
+      paginationToolbar
+      messageListView
+    }
+  }
+  
+  private var paginationToolbar: some View {
+    VStack(spacing: 0) {
+      paginationControls
+      Divider()
+    }
+  }
+  
+  private var paginationControls: some View {
+    VStack(spacing: 0) {
+      if selectedList != nil {
+        HStack(spacing: 24) {
+          PaginationButton(
+            systemName: "chevron.left",
+            help: "Prev (Newer)",
+            isEnabled: messagePageLinks.prev != nil
+          ) {
+            if let prev = messagePageLinks.prev { onPageLinkTapped(prev) }
+          }
+
+          PaginationButton(
+            systemName: "arrow.left.to.line",
+            help: "First Page",
+            isEnabled: messagePageLinks.latest != nil
+          ) {
+            if let latest = messagePageLinks.latest { onPageLinkTapped(latest) }
+          }
+
+          Text("Page \(currentPage)")
+            .font(.subheadline)
+            .foregroundColor(.secondary)
+            .frame(minWidth: 60)
+            .transition(AnimationConstants.fadeInOut)
+            .animation(Animation.userPreferenceQuick, value: currentPage)
+
+          PaginationButton(
+            systemName: "chevron.right",
+            help: "Next (Older)",
+            isEnabled: messagePageLinks.next != nil
+          ) {
+            if let next = messagePageLinks.next { onPageLinkTapped(next) }
+          }
+        }
+        .padding(.trailing, 16)
+        .transition(AnimationConstants.slideFromTop)
+      }
+    }
+    .frame(maxWidth: .infinity)
+    .padding(.vertical, 8)
+    .background(backgroundColor)
+  }
+  
+  private var messageListView: some View {
+    MessageListView(
+      selectedSidebarTab: selectedSidebarTab, selectedList: selectedList,
+      selectedMessage: $selectedMessage,
+      isLoading: isLoadingMessages,
+      nextURL: messagePageLinks.next,
+      prevURL: messagePageLinks.prev,
+      latestURL: messagePageLinks.latest,
+      currentPage: currentPage,
+      onPageLinkTapped: onPageLinkTapped
+    )
+    .frame(minWidth: 300, idealWidth: 700, maxWidth: .infinity, maxHeight: .infinity)
+  }
 }
 
 struct TaggedMessageRowView: View {
@@ -329,8 +390,12 @@ struct TaggedMessageRowView: View {
             Spacer()
             
             Button(action: {
+              #if os(iOS)
+              UIPasteboard.general.string = message.messageId
+              #elseif os(macOS)
               NSPasteboard.general.clearContents()
               NSPasteboard.general.setString(message.messageId, forType: .string)
+              #endif
             }) {
               Image(systemName: "doc.on.doc")
                 .font(.system(size: 8))
