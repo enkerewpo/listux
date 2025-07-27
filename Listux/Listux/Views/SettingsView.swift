@@ -1,8 +1,11 @@
 import SwiftUI
+import SwiftData
 
 struct SettingsView: View {
+  @Environment(\.modelContext) private var modelContext
   @State private var preferences = UserPreferences.shared
   @State private var showingResetAlert = false
+  @State private var showingClearDataAlert = false
   @State private var tempBaseURL: String = ""
 
   var body: some View {
@@ -117,6 +120,29 @@ struct SettingsView: View {
           }
         }
 
+        // Data Management
+        SettingsCard(title: "Data Management", icon: "trash") {
+          VStack(alignment: .leading, spacing: 11) {
+            HStack {
+              VStack(alignment: .leading, spacing: 4) {
+                Text("Clear Local Data")
+                  .font(.headline)
+                  .fontWeight(.medium)
+                Text("Remove all favorites, tags, and local preferences")
+                  .font(.caption)
+                  .foregroundColor(.secondary)
+              }
+              Spacer()
+              Button("Clear") {
+                showingClearDataAlert = true
+              }
+              .buttonStyle(.bordered)
+              .controlSize(.small)
+              .foregroundColor(.red)
+            }
+          }
+        }
+
         // Reset Button
         Button(action: {
           showingResetAlert = true
@@ -149,6 +175,14 @@ struct SettingsView: View {
       }
     } message: {
       Text("This will reset all settings to their default values. This action cannot be undone.")
+    }
+    .alert("Clear Local Data", isPresented: $showingClearDataAlert) {
+      Button("Cancel", role: .cancel) {}
+      Button("Clear Local Data", role: .destructive) {
+        SettingsManager.shared.clearAllData(modelContext: modelContext)
+      }
+    } message: {
+      Text("This will permanently delete all favorites, tags, and local preferences. Mailing lists and messages will remain intact. This action cannot be undone.")
     }
   }
 
