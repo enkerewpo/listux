@@ -237,7 +237,112 @@ struct SidebarView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
       }
       #else
-      // TODO: Implement sidebar for iOS
+      // iOS implementation
+      VStack(spacing: 0) {
+        // Content
+        Group {
+          switch selectedSidebarTab {
+          case .lists:
+            if isLoading {
+              ProgressView("Loading lists...")
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .transition(AnimationConstants.fadeInOut)
+            } else {
+              VStack(spacing: 0) {
+                // Search bar with improved spacing
+                HStack {
+                  Image(systemName: "magnifyingglass")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+                  TextField("Search mailing lists", text: $searchText)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 13))
+                    .focused($isSearchFocused)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(
+                  RoundedRectangle(cornerRadius: 8)
+                    .fill(Color(.systemGray6))
+                    .overlay(
+                      RoundedRectangle(cornerRadius: 8)
+                        .stroke(isSearchFocused ? Color.accentColor.opacity(0.5) : Color.clear, lineWidth: 1)
+                    )
+                )
+                .padding(.horizontal, 12)
+                .padding(.bottom, 8)
+
+                // Filtered list
+                List(selection: $selectedList) {
+                  ForEach(sortedLists, id: \.id) { list in
+                    MailingListItemView(
+                      list: list,
+                      isSelected: selectedList == list,
+                      isPinned: list.isPinned,
+                      onSelect: {
+                        withAnimation(Animation.userPreferenceQuick) {
+                          selectedList = list
+                        }
+                        onSelectList?(list)
+                      },
+                      onPinToggle: {
+                        withAnimation(Animation.userPreferenceQuick) {
+                          preference.togglePinned(list)
+                        }
+                      }
+                    )
+                  }
+                }
+                .listStyle(.insetGrouped)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+              }
+              .transition(AnimationConstants.slideFromTrailing)
+            }
+          case .favorites:
+            VStack(spacing: 0) {
+              if allTags.isEmpty {
+                VStack(spacing: 8) {
+                  Image(systemName: "star")
+                    .font(.system(size: 24))
+                    .foregroundColor(.secondary)
+                  Text("No favorite messages")
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .transition(AnimationConstants.fadeInOut)
+              } else {
+                List(selection: $selectedTag) {
+                  ForEach(allTags, id: \.self) { tag in
+                    TagItemView(
+                      tag: tag,
+                      isSelected: selectedTag == tag,
+                      messageCount: tag == "Untagged" ? 
+                        preference.getUntaggedMessages().count : 
+                        preference.getMessagesWithTag(tag).count,
+                      onSelect: {
+                        withAnimation(Animation.userPreferenceQuick) {
+                          selectedTag = tag
+                          onSelectTag?(tag)
+                        }
+                      }
+                    )
+                  }
+                }
+                .listStyle(.insetGrouped)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+              }
+            }
+            .transition(AnimationConstants.slideFromTrailing)
+          case .settings:
+            SettingsView()
+              .frame(maxWidth: .infinity, maxHeight: .infinity)
+              .transition(AnimationConstants.slideFromTrailing)
+          }
+        }
+        .animation(Animation.userPreference, value: selectedSidebarTab)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+      }
       #endif
     }
     .frame(minWidth: 240, idealWidth: 320, maxWidth: .infinity, maxHeight: .infinity)
