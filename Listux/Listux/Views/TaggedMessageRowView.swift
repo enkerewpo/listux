@@ -50,8 +50,12 @@ struct TaggedMessageRowView: View {
               #endif
             }) {
               Image(systemName: "doc.on.doc")
-                .font(.system(size: 8))
-                .foregroundColor(.blue)
+                #if os(macOS)
+                  .font(.system(size: 10))
+                #else
+                  .font(.system(size: 12))
+                #endif
+                  .foregroundColor(.blue)
             }
             .buttonStyle(.plain)
             .help("Copy Message ID")
@@ -61,46 +65,53 @@ struct TaggedMessageRowView: View {
         Spacer()
 
         HStack(spacing: 4) {
-          ForEach(preference.getTags(for: message.messageId), id: \.self) { tag in
-            TagChipView(tag: tag) {
-              preference.removeTag(tag, from: message.messageId)
-            }
-          }
-
-          Button(action: {
-            showingTagInput = true
-          }) {
-            Image(systemName: "plus.circle")
-              .font(.system(size: 10))
-              .foregroundColor(.blue)
-          }
-          .buttonStyle(.plain)
-          .popover(isPresented: $showingTagInput) {
-            VStack(spacing: 8) {
-              Text("Add Tag")
-                .font(.headline)
-
-              TextField("Tag name", text: $newTag)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
-
-              HStack {
-                Button("Cancel") {
-                  showingTagInput = false
-                  newTag = ""
-                }
-
-                Button("Add") {
-                  if !newTag.isEmpty {
-                    preference.addTag(newTag, to: message.messageId)
-                    newTag = ""
-                  }
-                  showingTagInput = false
-                }
-                .disabled(newTag.isEmpty)
+          // Only show tags for favorited messages
+          if preference.isFavoriteMessage(message.messageId) {
+            ForEach(preference.getTags(for: message.messageId), id: \.self) { tag in
+              TagChipView(tag: tag) {
+                preference.removeTag(tag, from: message.messageId)
               }
             }
-            .padding()
-            .frame(width: 200)
+
+            Button(action: {
+              showingTagInput = true
+            }) {
+              Image(systemName: "plus.circle")
+                #if os(macOS)
+                  .font(.system(size: 14))
+                #else
+                  .font(.system(size: 16))
+                #endif
+                  .foregroundColor(.blue)
+            }
+            .buttonStyle(.plain)
+            .popover(isPresented: $showingTagInput) {
+              VStack(spacing: 8) {
+                Text("Add Tag")
+                  .font(.headline)
+
+                TextField("Tag name", text: $newTag)
+                  .textFieldStyle(RoundedBorderTextFieldStyle())
+
+                HStack {
+                  Button("Cancel") {
+                    showingTagInput = false
+                    newTag = ""
+                  }
+
+                  Button("Add") {
+                    if !newTag.isEmpty {
+                      preference.addTag(newTag, to: message.messageId)
+                      newTag = ""
+                    }
+                    showingTagInput = false
+                  }
+                  .disabled(newTag.isEmpty)
+                }
+              }
+              .padding()
+              .frame(width: 200)
+            }
           }
 
           Button(action: {
@@ -109,8 +120,12 @@ struct TaggedMessageRowView: View {
             }
           }) {
             Image(systemName: "star.fill")
-              .font(.system(size: 10))
-              .foregroundColor(.yellow)
+              #if os(macOS)
+                .font(.system(size: 14))
+              #else
+                .font(.system(size: 16))
+              #endif
+                .foregroundColor(.yellow)
           }
           .buttonStyle(.plain)
         }
@@ -143,18 +158,26 @@ struct TagChipView: View {
   var body: some View {
     HStack(spacing: 2) {
       Text(tag)
-        .font(.system(size: 8))
-        .padding(.horizontal, 4)
-        .padding(.vertical, 1)
+        #if os(macOS)
+          .font(.system(size: 10))
+        #else
+          .font(.system(size: 12))
+        #endif
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
         .background(
-          RoundedRectangle(cornerRadius: 2)
+          RoundedRectangle(cornerRadius: 4)
             .fill(Color.blue.opacity(0.2))
         )
 
       Button(action: onRemove) {
         Image(systemName: "xmark.circle.fill")
-          .font(.system(size: 8))
-          .foregroundColor(.red)
+          #if os(macOS)
+            .font(.system(size: 10))
+          #else
+            .font(.system(size: 12))
+          #endif
+            .foregroundColor(.red)
       }
       .buttonStyle(.plain)
     }

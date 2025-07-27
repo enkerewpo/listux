@@ -79,8 +79,12 @@ struct SimpleMessageRowView: View {
                 NSPasteboard.general.setString(message.messageId, forType: .string)
               }) {
                 Image(systemName: "doc.on.doc")
-                  .font(.system(size: 8))
-                  .foregroundColor(.blue)
+                  #if os(macOS)
+                    .font(.system(size: 10))
+                  #else
+                    .font(.system(size: 12))
+                  #endif
+                    .foregroundColor(.blue)
               }
               .buttonStyle(.plain)
               .help("Copy Message ID")
@@ -94,7 +98,7 @@ struct SimpleMessageRowView: View {
                 UIPasteboard.general.string = message.messageId
               }) {
                 Image(systemName: "doc.on.doc")
-                  .font(.system(size: 8))
+                  .font(.system(size: 12))
                   .foregroundColor(.blue)
               }
               .buttonStyle(.plain)
@@ -107,47 +111,57 @@ struct SimpleMessageRowView: View {
 
         HStack(spacing: 4) {
           #if os(macOS)
-            ForEach(preference.getTags(for: message.messageId), id: \.self) { tag in
-              TagChipView(tag: tag) {
-                preference.removeTag(tag, from: message.messageId)
+            // Only show tags for favorited messages on macOS
+            if isFavorite {
+              ForEach(preference.getTags(for: message.messageId), id: \.self) { tag in
+                TagChipView(tag: tag) {
+                  preference.removeTag(tag, from: message.messageId)
+                }
               }
             }
           #endif
 
-          Button(action: {
-            showingTagInput = true
-          }) {
-            Image(systemName: "plus.circle")
-              .font(.system(size: 10))
-              .foregroundColor(.blue)
-          }
-          .buttonStyle(.plain)
-          .popover(isPresented: $showingTagInput) {
-            VStack(spacing: 8) {
-              Text("Add Tag")
-                .font(.headline)
+          // Only show add tag button for favorited messages
+          if isFavorite {
+            Button(action: {
+              showingTagInput = true
+            }) {
+              Image(systemName: "plus.circle")
+                #if os(macOS)
+                  .font(.system(size: 14))
+                #else
+                  .font(.system(size: 16))
+                #endif
+                  .foregroundColor(.blue)
+            }
+            .buttonStyle(.plain)
+            .popover(isPresented: $showingTagInput) {
+              VStack(spacing: 8) {
+                Text("Add Tag")
+                  .font(.headline)
 
-              TextField("Tag name", text: $newTag)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
+                TextField("Tag name", text: $newTag)
+                  .textFieldStyle(RoundedBorderTextFieldStyle())
 
-              HStack {
-                Button("Cancel") {
-                  showingTagInput = false
-                  newTag = ""
-                }
-
-                Button("Add") {
-                  if !newTag.isEmpty {
-                    preference.addTag(newTag, to: message.messageId)
+                HStack {
+                  Button("Cancel") {
+                    showingTagInput = false
                     newTag = ""
                   }
-                  showingTagInput = false
+
+                  Button("Add") {
+                    if !newTag.isEmpty {
+                      preference.addTag(newTag, to: message.messageId)
+                      newTag = ""
+                    }
+                    showingTagInput = false
+                  }
+                  .disabled(newTag.isEmpty)
                 }
-                .disabled(newTag.isEmpty)
               }
+              .padding()
+              .frame(width: 200)
             }
-            .padding()
-            .frame(width: 200)
           }
 
           Button(action: {
@@ -156,8 +170,12 @@ struct SimpleMessageRowView: View {
             }
           }) {
             Image(systemName: isFavorite ? "star.fill" : "star")
-              .font(.system(size: 10))
-              .foregroundColor(isFavorite ? .yellow : .secondary)
+              #if os(macOS)
+                .font(.system(size: 14))
+              #else
+                .font(.system(size: 16))
+              #endif
+                .foregroundColor(isFavorite ? .yellow : .secondary)
           }
           .buttonStyle(.plain)
         }

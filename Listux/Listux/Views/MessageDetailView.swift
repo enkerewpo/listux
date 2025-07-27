@@ -87,8 +87,12 @@ struct MessageDetailView: View {
                 #endif
               }) {
                 Image(systemName: "doc.on.doc")
-                  .font(.caption)
-                  .foregroundColor(.blue)
+                  #if os(macOS)
+                    .font(.system(size: 12))
+                  #else
+                    .font(.system(size: 14))
+                  #endif
+                    .foregroundColor(.blue)
               }
               .buttonStyle(.plain)
               .help("Copy Message ID")
@@ -117,40 +121,47 @@ struct MessageDetailView: View {
 
               Spacer()
 
-              Button(action: {
-                showingTagInput = true
-              }) {
-                Image(systemName: "plus.circle")
-                  .font(.caption)
-                  .foregroundColor(.blue)
-              }
-              .buttonStyle(.plain)
-              .popover(isPresented: $showingTagInput) {
-                VStack(spacing: 8) {
-                  Text("Add Tag")
-                    .font(.headline)
+              // Only show add tag button for favorited messages
+              if isFavorite {
+                Button(action: {
+                  showingTagInput = true
+                }) {
+                  Image(systemName: "plus.circle")
+                    #if os(macOS)
+                      .font(.system(size: 16))
+                    #else
+                      .font(.system(size: 18))
+                    #endif
+                      .foregroundColor(.blue)
+                }
+                .buttonStyle(.plain)
+                .popover(isPresented: $showingTagInput) {
+                  VStack(spacing: 8) {
+                    Text("Add Tag")
+                      .font(.headline)
 
-                  TextField("Tag name", text: $newTag)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    TextField("Tag name", text: $newTag)
+                      .textFieldStyle(RoundedBorderTextFieldStyle())
 
-                  HStack {
-                    Button("Cancel") {
-                      showingTagInput = false
-                      newTag = ""
-                    }
-
-                    Button("Add") {
-                      if !newTag.isEmpty {
-                        preference.addTag(newTag, to: msg.messageId)
+                    HStack {
+                      Button("Cancel") {
+                        showingTagInput = false
                         newTag = ""
                       }
-                      showingTagInput = false
+
+                      Button("Add") {
+                        if !newTag.isEmpty {
+                          preference.addTag(newTag, to: msg.messageId)
+                          newTag = ""
+                        }
+                        showingTagInput = false
+                      }
+                      .disabled(newTag.isEmpty)
                     }
-                    .disabled(newTag.isEmpty)
                   }
+                  .padding()
+                  .frame(width: 200)
                 }
-                .padding()
-                .frame(width: 200)
               }
             }
 
@@ -171,8 +182,12 @@ struct MessageDetailView: View {
                       preference.removeTag(tag, from: msg.messageId)
                     }) {
                       Image(systemName: "xmark.circle.fill")
-                        .font(.caption2)
-                        .foregroundColor(.red)
+                        #if os(macOS)
+                          .font(.system(size: 12))
+                        #else
+                          .font(.system(size: 14))
+                        #endif
+                          .foregroundColor(.red)
                     }
                     .buttonStyle(.plain)
                   }

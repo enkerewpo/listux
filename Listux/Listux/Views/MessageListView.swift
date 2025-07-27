@@ -169,8 +169,12 @@ struct MessageRowView: View {
                 #endif
               }) {
                 Image(systemName: "doc.on.doc")
-                  .font(.system(size: 8))
-                  .foregroundColor(.blue)
+                  #if os(macOS)
+                    .font(.system(size: 10))
+                  #else
+                    .font(.system(size: 12))
+                  #endif
+                    .foregroundColor(.blue)
               }
               .buttonStyle(.plain)
               .help("Copy Message ID")
@@ -188,46 +192,53 @@ struct MessageRowView: View {
 
         // Tag management and favorite button
         HStack(spacing: 4) {
-          ForEach(preference.getTags(for: message.messageId), id: \.self) { tag in
-            TagChipView(tag: tag) {
-              preference.removeTag(tag, from: message.messageId)
-            }
-          }
-
-          Button(action: {
-            showingTagInput = true
-          }) {
-            Image(systemName: "plus.circle")
-              .font(.system(size: 10))
-              .foregroundColor(.blue)
-          }
-          .buttonStyle(.plain)
-          .popover(isPresented: $showingTagInput) {
-            VStack(spacing: 8) {
-              Text("Add Tag")
-                .font(.headline)
-
-              TextField("Tag name", text: $newTag)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
-
-              HStack {
-                Button("Cancel") {
-                  showingTagInput = false
-                  newTag = ""
-                }
-
-                Button("Add") {
-                  if !newTag.isEmpty {
-                    preference.addTag(newTag, to: message.messageId)
-                    newTag = ""
-                  }
-                  showingTagInput = false
-                }
-                .disabled(newTag.isEmpty)
+          // Only show tags and add tag button for favorited messages
+          if isFavorite {
+            ForEach(preference.getTags(for: message.messageId), id: \.self) { tag in
+              TagChipView(tag: tag) {
+                preference.removeTag(tag, from: message.messageId)
               }
             }
-            .padding()
-            .frame(width: 200)
+
+            Button(action: {
+              showingTagInput = true
+            }) {
+              Image(systemName: "plus.circle")
+                #if os(macOS)
+                  .font(.system(size: 14))
+                #else
+                  .font(.system(size: 16))
+                #endif
+                  .foregroundColor(.blue)
+            }
+            .buttonStyle(.plain)
+            .popover(isPresented: $showingTagInput) {
+              VStack(spacing: 8) {
+                Text("Add Tag")
+                  .font(.headline)
+
+                TextField("Tag name", text: $newTag)
+                  .textFieldStyle(RoundedBorderTextFieldStyle())
+
+                HStack {
+                  Button("Cancel") {
+                    showingTagInput = false
+                    newTag = ""
+                  }
+
+                  Button("Add") {
+                    if !newTag.isEmpty {
+                      preference.addTag(newTag, to: message.messageId)
+                      newTag = ""
+                    }
+                    showingTagInput = false
+                  }
+                  .disabled(newTag.isEmpty)
+                }
+              }
+              .padding()
+              .frame(width: 200)
+            }
           }
 
           Button(action: {
@@ -236,8 +247,13 @@ struct MessageRowView: View {
             }
           }) {
             Image(systemName: isFavorite ? "star.fill" : "star")
-              .foregroundColor(isFavorite ? .yellow : .secondary)
-              .scaleEffect(isFavorite ? AnimationConstants.favoriteScale : 1.0)
+              #if os(macOS)
+                .font(.system(size: 14))
+              #else
+                .font(.system(size: 16))
+              #endif
+                .foregroundColor(isFavorite ? .yellow : .secondary)
+                .scaleEffect(isFavorite ? AnimationConstants.favoriteScale : 1.0)
           }
           .buttonStyle(.plain)
           .animation(AnimationConstants.springQuick, value: isFavorite)
