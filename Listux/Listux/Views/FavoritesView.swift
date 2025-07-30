@@ -35,7 +35,7 @@ struct FavoritesMessageView: View {
   @State private var messages: [Message] = []
 
   var body: some View {
-    SimpleMessageListView(
+    MessageListView(
       messages: messages,
       title: tag,
       isLoading: false

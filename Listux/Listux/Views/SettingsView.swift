@@ -42,43 +42,43 @@ struct SettingsView: View {
         }
 
         // Animation Settings
-        SettingsCard(title: "Animations", icon: "sparkles") {
-          VStack(alignment: .leading, spacing: 11) {
-            HStack {
-              VStack(alignment: .leading, spacing: 4) {
-                Text("Enable Animations")
-                  .font(.headline)
-                  .fontWeight(.medium)
-                Text("Smooth transitions and effects")
-                  .font(.caption)
-                  .foregroundColor(.secondary)
-              }
-              Spacer()
-              Toggle("", isOn: $preferences.animationsEnabled)
-                .toggleStyle(SwitchToggleStyle(tint: .accentColor))
-            }
+        // SettingsCard(title: "Animations", icon: "sparkles") {
+        //   VStack(alignment: .leading, spacing: 11) {
+        //     HStack {
+        //       VStack(alignment: .leading, spacing: 4) {
+        //         Text("Enable Animations")
+        //           .font(.headline)
+        //           .fontWeight(.medium)
+        //         Text("Smooth transitions and effects")
+        //           .font(.caption)
+        //           .foregroundColor(.secondary)
+        //       }
+        //       Spacer()
+        //       Toggle("", isOn: $preferences.animationsEnabled)
+        //         .toggleStyle(SwitchToggleStyle(tint: .accentColor))
+        //     }
 
-            if preferences.animationsEnabled {
-              VStack(alignment: .leading, spacing: 8) {
-                Text("Animation Speed")
-                  .font(.subheadline)
-                  .fontWeight(.medium)
+        //     if preferences.animationsEnabled {
+        //       VStack(alignment: .leading, spacing: 8) {
+        //         Text("Animation Speed")
+        //           .font(.subheadline)
+        //           .fontWeight(.medium)
 
-                HStack(spacing: 12) {
-                  ForEach(AnimationSpeed.allCases, id: \.self) { speed in
-                    SpeedButton(
-                      speed: speed,
-                      isSelected: preferences.animationSpeed == speed
-                    ) {
-                      preferences.animationSpeed = speed
-                    }
-                  }
-                }
-              }
-              .padding(.leading, 4)
-            }
-          }
-        }
+        //         HStack(spacing: 12) {
+        //           ForEach(AnimationSpeed.allCases, id: \.self) { speed in
+        //             SpeedButton(
+        //               speed: speed,
+        //               isSelected: preferences.animationSpeed == speed
+        //             ) {
+        //               preferences.animationSpeed = speed
+        //             }
+        //           }
+        //         }
+        //       }
+        //       .padding(.leading, 4)
+        //     }
+        //   }
+        // }
 
         // Interface Settings
         SettingsCard(title: "Interface", icon: "slider.horizontal.3") {

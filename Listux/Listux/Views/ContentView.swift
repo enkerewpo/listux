@@ -176,36 +176,11 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
           } else {
-            if selectedList != nil {
-              PaginationView(
-                currentPage: currentPage,
-                hasNext: messagePageLinks.next != nil,
-                hasPrev: messagePageLinks.prev != nil,
-                hasLatest: messagePageLinks.latest != nil,
-                onPrev: {
-                  if let prev = messagePageLinks.prev { onPageLinkTapped(url: prev) }
-                },
-                onNext: {
-                  if let next = messagePageLinks.next { onPageLinkTapped(url: next) }
-                },
-                onLatest: {
-                  if let latest = messagePageLinks.latest { onPageLinkTapped(url: latest) }
-                }
-              )
-              .frame(maxWidth: .infinity)
-              .padding(.vertical, 8)
-              .background(Color(.windowBackgroundColor).opacity(0.95))
-            }
             Divider()
             MessageListView(
-              selectedSidebarTab: selectedSidebarTab, selectedList: selectedList,
-              selectedMessage: $selectedMessage,
-              isLoading: isLoadingMessages,
-              nextURL: messagePageLinks.next,
-              prevURL: messagePageLinks.prev,
-              latestURL: messagePageLinks.latest,
-              currentPage: currentPage,
-              onPageLinkTapped: onPageLinkTapped
+              messages: selectedList?.orderedMessages ?? [],
+              title: selectedList?.name ?? "",
+              isLoading: isLoadingMessages
             )
             .frame(minWidth: 300, idealWidth: 700, maxWidth: .infinity, maxHeight: .infinity)
           }
