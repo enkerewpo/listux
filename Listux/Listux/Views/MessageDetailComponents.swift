@@ -96,13 +96,12 @@ struct DiffContentView: View {
     VStack(alignment: .leading, spacing: 8) {
       // File path header
       Text(diff.filePath)
-        // .font(.subheadline)
         .foregroundColor(.primary)
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
         .background(Color.blue.opacity(0.1))
         .cornerRadius(4)
-        .font(.system(.subheadline, design: .monospaced))
+        .font(.system(.caption2, design: .monospaced, weight: .bold))
 
       // Diff content with performance optimization
       LazyVStack(alignment: .leading, spacing: 2) {
