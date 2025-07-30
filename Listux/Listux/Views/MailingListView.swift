@@ -26,8 +26,8 @@ struct MailingListView: View {
       return mailingLists
     }
     return mailingLists.filter { list in
-      list.name.localizedCaseInsensitiveContains(searchText) ||
-      list.desc.localizedCaseInsensitiveContains(searchText)
+      list.name.localizedCaseInsensitiveContains(searchText)
+        || list.desc.localizedCaseInsensitiveContains(searchText)
     }
   }
 
@@ -52,11 +52,11 @@ struct MailingListView: View {
       .padding(.vertical, 12)
       .background(
         RoundedRectangle(cornerRadius: 10)
-        #if os(iOS)
-          .fill(Color(.systemGray6))
-        #else
-          .fill(Color(.windowBackgroundColor))
-        #endif
+          #if os(iOS)
+            .fill(Color(.systemGray6))
+          #else
+            .fill(Color(.windowBackgroundColor))
+          #endif
       )
       .padding(.horizontal, 16)
       .padding(.vertical, 8)
@@ -80,9 +80,9 @@ struct MailingListView: View {
                 .foregroundColor(.secondary)
             }
           }
-          
+
           Spacer()
-          
+
           Button(action: {
             withAnimation(AnimationConstants.springQuick) {
               preference.togglePinned(list)
@@ -155,7 +155,6 @@ struct MailingListMessageView: View {
     }
   }
 }
-
 
 struct MailingListItemView: View {
   let list: MailingList

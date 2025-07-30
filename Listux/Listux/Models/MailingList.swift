@@ -8,7 +8,7 @@ final class MailingList: Identifiable {
   var name: String
   var desc: String
   var isPinned: Bool = false
-  
+
   @Relationship(deleteRule: .cascade) var messages: [Message] = []
   // Store messages in loaded order for UI display (not persisted)
   var orderedMessages: [Message] = []

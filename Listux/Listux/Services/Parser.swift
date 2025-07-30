@@ -16,7 +16,7 @@ class Parser {
     /// URL for the latest page, if available
     var latestURL: String?
   }
-  
+
   /// Extract timestamp from message URL
   /// URL format: https://lore.kernel.org/loongarch/20250714070438.2399153-1-chenhuacai@loongson.cn
   /// The timestamp is encoded in the URL path: 20250714070438 (YYYYMMDDHHMMSS)
@@ -24,23 +24,24 @@ class Parser {
     // Extract the timestamp part from the URL
     // Pattern: /YYYYMMDDHHMMSS-identifier/
     let pattern = #"/(\d{14})-"#
-    
+
     guard let regex = try? NSRegularExpression(pattern: pattern),
-          let match = regex.firstMatch(in: url, range: NSRange(url.startIndex..., in: url)),
-          match.numberOfRanges > 1 else {
+      let match = regex.firstMatch(in: url, range: NSRange(url.startIndex..., in: url)),
+      match.numberOfRanges > 1
+    else {
       return nil
     }
-    
+
     let timestampRange = match.range(at: 1)
     guard let range = Range(timestampRange, in: url) else { return nil }
-    
+
     let timestampString = String(url[range])
-    
+
     // Parse YYYYMMDDHHMMSS format
     let dateFormatter = DateFormatter()
     dateFormatter.dateFormat = "yyyyMMddHHmmss"
     dateFormatter.timeZone = TimeZone(abbreviation: "UTC")
-    
+
     return dateFormatter.date(from: timestampString)
   }
 
@@ -83,9 +84,11 @@ class Parser {
           logger.debug("Parsed timestamp from text: \(timestamp)")
         }
 
-        let fullUrl = LORE_LINUX_BASE_URL.value + "/" + mailingList.name + "/" + url.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let fullUrl =
+          LORE_LINUX_BASE_URL.value + "/" + mailingList.name + "/"
+          + url.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         logger.debug("Constructing messageId: \(fullUrl)")
-        
+
         let message = Message(
           subject: subject,
           content: url,

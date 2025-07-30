@@ -7,11 +7,13 @@ import SwiftUI
 
 struct MessageDetailView: View {
   var selectedMessage: Message?
-  @State private var messageHtml: String = ""
+  @State private var parsedDetail: ParsedMessageDetail?
   @State private var isLoadingHtml: Bool = false
   @State private var isFavoriteAnimating: Bool = false
   @State private var showingTagInput: Bool = false
   @State private var newTag: String = ""
+  @State private var selectedTab: Int = 0
+  @State private var diffExpanded: Bool = false
   @Environment(\.modelContext) private var modelContext
   @Query private var preferences: [Preference]
 
@@ -30,10 +32,38 @@ struct MessageDetailView: View {
     return preference.isFavoriteMessage(message.messageId)
   }
 
+  private var isPatchEmail: Bool {
+    guard let detail = parsedDetail else { return false }
+    return !detail.diffContent.isEmpty
+  }
+
+  private var availableTabs: [String] {
+    guard let detail = parsedDetail else { return [] }
+    var tabs = ["Metadata", "Content"]
+
+    if !detail.diffContent.isEmpty {
+      tabs.append("Diff")
+    }
+
+    if detail.threadNavigation != nil {
+      tabs.append("Thread")
+    }
+
+    return tabs
+  }
+
+  private var totalDiffLines: Int {
+    guard let detail = parsedDetail else { return 0 }
+    return detail.diffContent.reduce(0) { total, diff in
+      total + diff.context.count + diff.additions.count + diff.deletions.count
+    }
+  }
+
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 16) {
         if let msg = selectedMessage {
+          // Header with favorite button
           HStack {
             Text(msg.subject)
               .font(.title2)
@@ -59,6 +89,7 @@ struct MessageDetailView: View {
 
           Divider()
 
+          // Message ID and copy functionality
           VStack(alignment: .leading, spacing: 8) {
             HStack {
               Text("Message ID: \(msg.messageId)")
@@ -88,6 +119,7 @@ struct MessageDetailView: View {
             }
           }
 
+          // Tags section
           VStack(alignment: .leading, spacing: 8) {
             HStack {
               if isFavorite {
@@ -170,36 +202,103 @@ struct MessageDetailView: View {
 
           Divider()
 
-          VStack(alignment: .leading, spacing: 8) {
-            HStack {
-              Text("Raw HTML Content")
-                .font(.headline)
-              Spacer()
-              if isLoadingHtml {
-                ProgressView()
-                  .scaleEffect(0.8)
-              }
-            }
-
-            if isLoadingHtml {
+          // Content tabs
+          if isLoadingHtml {
+            VStack {
+              ProgressView()
+                .scaleEffect(0.8)
               Text("Loading message content...")
                 .foregroundColor(.secondary)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if messageHtml.isEmpty {
-              Text("No HTML content loaded")
-                .foregroundColor(.secondary)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-              let displayHtml =
-                messageHtml.prefix(3000)
-                + (messageHtml.count > 3000
-                  ? "\n\n... (content truncated, showing first 3000 characters)" : "")
-              Text(displayHtml)
-                .font(.system(.caption, design: .monospaced))
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+          } else if let detail = parsedDetail {
+            // Tab selector
+            if availableTabs.count > 1 {
+              Picker("Content Type", selection: $selectedTab) {
+                ForEach(Array(availableTabs.enumerated()), id: \.offset) { index, tab in
+                  Text(tab).tag(index)
+                }
+              }
+              .pickerStyle(SegmentedPickerStyle())
+              .padding(.horizontal)
+            }
+
+            // Tab content
+            if selectedTab < availableTabs.count {
+              switch availableTabs[selectedTab] {
+              case "Metadata":
+                MessageMetadataView(metadata: detail.metadata)
+              case "Content":
+                if isPatchEmail {
+                  MessageContentView(content: detail.content)
+                } else {
+                  EmailContentView(content: detail.content)
+                }
+              case "Diff":
+                if detail.diffContent.isEmpty {
+                  Text("No diff content available")
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                  VStack(alignment: .leading, spacing: 8) {
+                    // Diff summary and controls
+                    HStack {
+                      Text("Diff Content")
+                        .font(.headline)
+
+                      Spacer()
+
+                      Text("\(detail.diffContent.count) files, \(totalDiffLines) lines")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                      Button(action: {
+                        diffExpanded.toggle()
+                      }) {
+                        Image(systemName: diffExpanded ? "chevron.up" : "chevron.down")
+                          .font(.caption)
+                      }
+                      .buttonStyle(.plain)
+                    }
+
+                    if diffExpanded {
+                      // Optimized diff list with virtualization
+                      OptimizedDiffListView(diffs: detail.diffContent)
+                    } else {
+                      // Show first few diffs as preview
+                      VStack(spacing: 8) {
+                        ForEach(Array(detail.diffContent.prefix(3).enumerated()), id: \.offset) {
+                          index, diff in
+                          DiffContentView(diff: diff)
+                        }
+
+                        if detail.diffContent.count > 3 {
+                          Button(
+                            "Show all \(detail.diffContent.count) files (\(totalDiffLines) lines)"
+                          ) {
+                            diffExpanded = true
+                          }
+                          .buttonStyle(.bordered)
+                        }
+                      }
+                    }
+                  }
+                }
+              case "Thread":
+                if let navigation = detail.threadNavigation {
+                  ThreadNavigationView(navigation: navigation) { messageId in
+                    // Handle navigation to other messages
+                    print("Navigate to message: \(messageId)")
+                  }
+                }
+              default:
+                EmptyView()
+              }
+            }
+          } else {
+            Text("No parsed content available")
+              .foregroundColor(.secondary)
+              .frame(maxWidth: .infinity, maxHeight: .infinity)
           }
 
           Spacer()
@@ -214,25 +313,26 @@ struct MessageDetailView: View {
     .onChange(of: selectedMessage) { _, newMessage in
       print("onChange triggered - newMessage: \(newMessage?.subject ?? "nil")")
       if let message = newMessage {
-        loadMessageHtml(message: message)
+        loadMessageDetail(message: message)
       } else {
-        messageHtml = ""
+        parsedDetail = nil
         isLoadingHtml = false
       }
     }
     .onAppear {
       print("onAppear triggered - selectedMessage: \(selectedMessage?.subject ?? "nil")")
       if let message = selectedMessage {
-        loadMessageHtml(message: message)
+        loadMessageDetail(message: message)
       }
     }
   }
 
-  private func loadMessageHtml(message: Message) {
-    print("loadMessageHtml called for message: \(message.subject)")
+  private func loadMessageDetail(message: Message) {
+    print("loadMessageDetail called for message: \(message.subject)")
 
     isLoadingHtml = true
-    messageHtml = ""
+    parsedDetail = nil
+    diffExpanded = false
 
     Task {
       do {
@@ -258,16 +358,32 @@ struct MessageDetailView: View {
           print("Warning: Received empty HTML content")
         }
 
+        // Parse the HTML content
+        let parsed = MessageDetailParser.parseMessageDetail(
+          from: html, messageId: message.messageId)
+
+        // Update the message with parsed data
+        if let parsed = parsed {
+          await MainActor.run {
+            message.author = parsed.metadata.author
+            message.recipients = parsed.metadata.recipients
+            message.ccRecipients = parsed.metadata.ccRecipients
+            message.rawHtml = parsed.rawHtml
+            message.permalink = parsed.metadata.permalink
+            message.rawUrl = parsed.metadata.rawUrl
+          }
+        }
+
         await MainActor.run {
-          messageHtml = html
+          parsedDetail = parsed
           isLoadingHtml = false
         }
       } catch {
-        print("Failed to load message HTML: \(error)")
+        print("Failed to load message detail: \(error)")
         print("Error details: \(error.localizedDescription)")
 
         await MainActor.run {
-          messageHtml = "Error loading message content: \(error.localizedDescription)"
+          parsedDetail = nil
           isLoadingHtml = false
         }
       }

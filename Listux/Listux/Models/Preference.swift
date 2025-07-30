@@ -7,8 +7,8 @@ final class Preference {
 
   var favoriteLists: [MailingList] = []
   var pinnedLists: [MailingList] = []
-  var favoriteMessageIds: [String] = [] // Store message IDs as strings for persistence
-  var messageTags: [String: [String]] = [:] // messageId -> [tag1, tag2, ...]
+  var favoriteMessageIds: [String] = []  // Store message IDs as strings for persistence
+  var messageTags: [String: [String]] = [:]  // messageId -> [tag1, tag2, ...]
   var lastViewedList: MailingList?
 
   init() {}
@@ -24,7 +24,7 @@ final class Preference {
   func isFavorite(_ list: MailingList) -> Bool {
     favoriteLists.contains { $0.id == list.id }
   }
-  
+
   func togglePinned(_ list: MailingList) {
     if pinnedLists.contains(list) {
       pinnedLists.removeAll { $0.id == list.id }
@@ -38,7 +38,7 @@ final class Preference {
   func isPinned(_ list: MailingList) -> Bool {
     pinnedLists.contains { $0.id == list.id }
   }
-  
+
   func toggleFavoriteMessage(_ messageId: String) {
     if favoriteMessageIds.contains(messageId) {
       favoriteMessageIds.removeAll { $0 == messageId }
@@ -52,41 +52,41 @@ final class Preference {
   func isFavoriteMessage(_ messageId: String) -> Bool {
     favoriteMessageIds.contains(messageId)
   }
-  
+
   // Tag management
   func addTag(_ tag: String, to messageId: String) {
     if !favoriteMessageIds.contains(messageId) {
-      return // Can only tag favorite messages
+      return  // Can only tag favorite messages
     }
-    
+
     if messageTags[messageId] == nil {
       messageTags[messageId] = []
     }
-    
+
     if !messageTags[messageId]!.contains(tag) {
       messageTags[messageId]!.append(tag)
     }
   }
-  
+
   func removeTag(_ tag: String, from messageId: String) {
     messageTags[messageId]?.removeAll { $0 == tag }
   }
-  
+
   func getTags(for messageId: String) -> [String] {
     return messageTags[messageId] ?? []
   }
-  
+
   func getAllTags() -> [String] {
     let allTags = Set(messageTags.values.flatMap { $0 })
     return Array(allTags).sorted()
   }
-  
+
   func getMessagesWithTag(_ tag: String) -> [String] {
     return messageTags.compactMap { messageId, tags in
       tags.contains(tag) ? messageId : nil
     }
   }
-  
+
   func getUntaggedMessages() -> [String] {
     return favoriteMessageIds.filter { messageId in
       messageTags[messageId]?.isEmpty ?? true

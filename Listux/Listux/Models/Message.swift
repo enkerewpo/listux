@@ -14,6 +14,14 @@ final class Message {
   var seqId: Int = 0
   var messageId: String = ""
 
+  // New properties for detailed message parsing
+  var author: String = ""
+  var recipients: [String] = []
+  var ccRecipients: [String] = []
+  var rawHtml: String = ""
+  var permalink: String = ""
+  var rawUrl: String = ""
+
   init(
     subject: String, content: String, timestamp: Date, parent: Message? = nil,
     seqId: Int = 0, messageId: String = ""
