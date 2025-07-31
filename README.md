@@ -1,10 +1,10 @@
 # listux
 
-operating system development mailing list feed client
+operating system development mailing list feed client, support MacOS and iOS.
 
-work in progress
+_work in progress_
 
-![image1.png](images/image1.png)
+![image](images/image2.png)
 
 a https://lore.kernel.org/{channel} client for browsing linux kernel maillists topics and message rendering
 
