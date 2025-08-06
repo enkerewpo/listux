@@ -143,6 +143,48 @@ struct SettingsView: View {
           }
         }
 
+        let version =
+          Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
+        let copyright = "Copyright © 2025 wheatfox"
+        let githubURL = "https://github.com/enkerewpo/listux"
+        let releasesURL = "https://github.com/enkerewpo/listux/releases"
+
+        SettingsCard(title: "About", icon: "info") {
+          VStack(alignment: .leading, spacing: 11) {
+            HStack {
+              Text("Listux is a linux kernel mailing list client for macOS and iOS.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+              Spacer()
+            }
+            Text(
+              "Version: \(version), \(copyright)"
+            )
+            .font(.caption)
+            .foregroundColor(.secondary)
+            .padding(.top, 4)
+            Button("Open GitHub Page") {
+              #if os(macOS)
+                NSWorkspace.shared.open(URL(string: githubURL)!)
+              #else
+                UIApplication.shared.open(URL(string: githubURL)!)
+              #endif
+            }.buttonStyle(.bordered)
+              .controlSize(.small)
+            Button("Check for Updates") {
+              #if os(macOS)
+                NSWorkspace.shared.open(URL(string: releasesURL)!)
+              #else
+                UIApplication.shared.open(
+                  URL(string: releasesURL)!)
+              #endif
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            Spacer()
+          }
+        }
+
         // Reset Button
         Button(action: {
           showingResetAlert = true
