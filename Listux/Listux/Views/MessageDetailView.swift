@@ -13,6 +13,8 @@ struct MessageDetailView: View {
   @State private var showingTagInput: Bool = false
   @State private var newTag: String = ""
   @State private var selectedTab: Int = 0
+  @State private var showFullContent: Bool = false
+  @State private var currentPage: Int = 0
   @Environment(\.modelContext) private var modelContext
   @Query private var preferences: [Preference]
 
@@ -35,28 +37,43 @@ struct MessageDetailView: View {
     guard let detail = parsedDetail else { return false }
     return !detail.diffContent.isEmpty
   }
+  
+  private var hasMultiplePages: Bool {
+    guard let detail = parsedDetail else { return false }
+    if isPatchEmail {
+      return detail.content.count > 5000
+    } else {
+      let lines = detail.content.components(separatedBy: .newlines)
+      return lines.count > 150
+    }
+  }
+  
+  private var totalPages: Int {
+    guard let detail = parsedDetail else { return 1 }
+    if isPatchEmail {
+      return (detail.content.count + 5000 - 1) / 5000
+    } else {
+      let lines = detail.content.components(separatedBy: .newlines)
+      return (lines.count + 150 - 1) / 150
+    }
+  }
 
   private var availableTabs: [String] {
     guard let detail = parsedDetail else { return [] }
-    var tabs = ["Metadata", "Content"]
-
-    if detail.threadNavigation != nil {
-      tabs.append("Thread")
-    }
-
-    return tabs
+    return ["Metadata", "Content"]
   }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
       if let msg = selectedMessage {
         // Fixed header section - NO SCROLLING
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 8) {
           // Header with favorite button
           HStack {
             Text(msg.subject)
-              .font(.title2)
+              .font(.headline)
               .bold()
+              .lineLimit(2)
             Spacer()
             Button(action: {
               preference.toggleFavoriteMessage(msg.messageId)
@@ -72,181 +89,264 @@ struct MessageDetailView: View {
             .buttonStyle(.plain)
           }
 
-          Text(msg.timestamp, style: .date)
-            .font(.caption)
-            .foregroundColor(.secondary)
+          HStack {
+            Text(msg.timestamp, style: .date)
+              .font(.caption)
+              .foregroundColor(.secondary)
+            
+            Spacer()
+            
+            // Message ID and copy functionality - compact version
+            Button(action: {
+              #if os(macOS)
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(msg.messageId, forType: .string)
+              #else
+                UIPasteboard.general.string = msg.messageId
+              #endif
+            }) {
+              Image(systemName: "doc.on.doc")
+                .font(.system(size: 12))
+                .foregroundColor(.blue)
+            }
+            .buttonStyle(.plain)
+            .help("Copy Message ID")
+          }
 
-          Divider()
-
-          // Message ID and copy functionality
-          VStack(alignment: .leading, spacing: 8) {
+          // Tags section - compact version
+          if isFavorite {
             HStack {
-              Text("Message ID: \(msg.messageId)")
-                .font(.caption)
-                .foregroundColor(.secondary)
-
-              Spacer()
-
               Button(action: {
-                #if os(macOS)
-                  NSPasteboard.general.clearContents()
-                  NSPasteboard.general.setString(msg.messageId, forType: .string)
-                #else
-                  UIPasteboard.general.string = msg.messageId
-                #endif
+                showingTagInput = true
               }) {
-                Image(systemName: "doc.on.doc")
-                  #if os(macOS)
-                    .font(.system(size: 12))
-                  #else
-                    .font(.system(size: 14))
-                  #endif
+                Image(systemName: "plus.circle")
+                  .font(.system(size: 14))
                   .foregroundColor(.blue)
               }
               .buttonStyle(.plain)
-              .help("Copy Message ID")
-            }
-          }
+              .popover(isPresented: $showingTagInput) {
+                VStack(spacing: 8) {
+                  Text("Add Tag")
+                    .font(.headline)
 
-          // Tags section
-          VStack(alignment: .leading, spacing: 8) {
-            HStack {
-              if isFavorite {
-                Button(action: {
-                  showingTagInput = true
-                }) {
-                  Image(systemName: "plus.circle")
-                    #if os(macOS)
-                      .font(.system(size: 16))
-                    #else
-                      .font(.system(size: 18))
-                    #endif
-                    .foregroundColor(.blue)
-                }
-                .buttonStyle(.plain)
-                .popover(isPresented: $showingTagInput) {
-                  VStack(spacing: 8) {
-                    Text("Add Tag")
-                      .font(.headline)
+                  TextField("Tag name", text: $newTag)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
 
-                    TextField("Tag name", text: $newTag)
-                      .textFieldStyle(RoundedBorderTextFieldStyle())
+                  HStack {
+                    Button("Cancel") {
+                      showingTagInput = false
+                      newTag = ""
+                    }
 
-                    HStack {
-                      Button("Cancel") {
-                        showingTagInput = false
+                    Button("Add") {
+                      if !newTag.isEmpty {
+                        preference.addTag(newTag, to: msg.messageId)
                         newTag = ""
                       }
+                      showingTagInput = false
+                    }
+                    .disabled(newTag.isEmpty)
+                  }
+                }
+                .padding()
+                .frame(width: 200)
+              }
 
-                      Button("Add") {
-                        if !newTag.isEmpty {
-                          preference.addTag(newTag, to: msg.messageId)
-                          newTag = ""
+              if !preference.getTags(for: msg.messageId).isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                  HStack(spacing: 4) {
+                    ForEach(preference.getTags(for: msg.messageId), id: \.self) { tag in
+                      HStack(spacing: 2) {
+                        Text(tag)
+                          .font(.caption2)
+                          .padding(.horizontal, 6)
+                          .padding(.vertical, 2)
+                          .background(
+                            RoundedRectangle(cornerRadius: 3)
+                              .fill(Color.blue.opacity(0.2))
+                          )
+
+                        Button(action: {
+                          preference.removeTag(tag, from: msg.messageId)
+                        }) {
+                          Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 10))
+                            .foregroundColor(.red)
                         }
-                        showingTagInput = false
+                        .buttonStyle(.plain)
                       }
-                      .disabled(newTag.isEmpty)
                     }
                   }
-                  .padding()
-                  .frame(width: 200)
+                  .padding(.horizontal, 4)
                 }
               }
-            }
-
-            if !preference.getTags(for: msg.messageId).isEmpty {
-              LazyVGrid(columns: [GridItem(.adaptive(minimum: 100))], spacing: 4) {
-                ForEach(preference.getTags(for: msg.messageId), id: \.self) { tag in
-                  HStack {
-                    Text(tag)
-                      .font(.caption)
-                      .padding(.horizontal, 8)
-                      .padding(.vertical, 4)
-                      .background(
-                        RoundedRectangle(cornerRadius: 4)
-                          .fill(Color.blue.opacity(0.2))
-                      )
-
-                    Button(action: {
-                      preference.removeTag(tag, from: msg.messageId)
-                    }) {
-                      Image(systemName: "xmark.circle.fill")
-                        #if os(macOS)
-                          .font(.system(size: 12))
-                        #else
-                          .font(.system(size: 14))
-                        #endif
-                        .foregroundColor(.red)
-                    }
-                    .buttonStyle(.plain)
-                  }
-                }
-              }
-            } else {
-              Text("No tags")
-                .font(.caption)
-                .foregroundColor(.secondary)
             }
           }
 
           Divider()
         }
-        .padding()
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        #if os(macOS)
         .background(Color(NSColor.controlBackgroundColor))
+        #else
+        .background(Color(UIColor.systemBackground))
+        #endif
 
-        // Fixed tab selector - NO SCROLLING
-        if let detail = parsedDetail, availableTabs.count > 1 {
-          Picker("", selection: $selectedTab) {
-            ForEach(Array(availableTabs.enumerated()), id: \.offset) { index, tab in
-              Text(tab).tag(index)
+        // Fixed toolbar - NO SCROLLING
+        if let detail = parsedDetail {
+          HStack(spacing: 8) {
+            // Tab selector with icons
+            if availableTabs.count > 1 {
+              HStack(spacing: 0) {
+                ForEach(Array(availableTabs.enumerated()), id: \.offset) { index, tab in
+                  Button(action: {
+                    selectedTab = index
+                  }) {
+                    HStack(spacing: 4) {
+                      Image(systemName: tab == "Metadata" ? "info.circle" : "doc.text")
+                        .font(.system(size: 12))
+                      Text(tab)
+                        .font(.caption2)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(selectedTab == index ? Color.accentColor.opacity(0.2) : Color.clear)
+                    .foregroundColor(selectedTab == index ? .accentColor : .secondary)
+                    .cornerRadius(4)
+                  }
+                  .buttonStyle(.plain)
+                  
+                  if index < availableTabs.count - 1 {
+                    Divider()
+                      .frame(height: 16)
+                      .padding(.horizontal, 2)
+                  }
+                }
+              }
+              .padding(.horizontal, 6)
+              .padding(.vertical, 2)
+              .background(Color.secondary.opacity(0.1))
+              .cornerRadius(6)
+            }
+            
+            Spacer()
+            
+            // Content controls (only for Content tab)
+            if selectedTab < availableTabs.count && availableTabs[selectedTab] == "Content" {
+              // Show More/Less button
+              if hasMultiplePages {
+                Button(showFullContent ? "Show Less" : "Show More") {
+                  showFullContent.toggle()
+                  currentPage = 0
+                }
+                .buttonStyle(.bordered)
+                .font(.caption2)
+                .controlSize(.small)
+              }
+              
+              // Pagination controls (only when showing full content)
+              if showFullContent && totalPages > 1 {
+                Button("←") {
+                  if currentPage > 0 {
+                    currentPage -= 1
+                  }
+                }
+                .disabled(currentPage == 0)
+                .buttonStyle(.bordered)
+                .font(.caption2)
+                .controlSize(.small)
+                
+                Text("\(currentPage + 1) / \(totalPages)")
+                  .font(.caption2)
+                  .foregroundColor(.secondary)
+                  .frame(minWidth: 50)
+                
+                Button("→") {
+                  if currentPage < totalPages - 1 {
+                    currentPage += 1
+                  }
+                }
+                .disabled(currentPage == totalPages - 1)
+                .buttonStyle(.bordered)
+                .font(.caption2)
+                .controlSize(.small)
+              }
             }
           }
-          .pickerStyle(SegmentedPickerStyle())
-          .padding(.horizontal)
-          .padding(.vertical, 8)
+          .padding(.horizontal, 12)
+          .padding(.vertical, 4)
+          #if os(macOS)
           .background(Color(NSColor.controlBackgroundColor))
+          #else
+          .background(Color(UIColor.systemBackground))
+          #endif
         }
 
         // Content area with fixed controls and scrollable content
-        if isLoadingHtml {
-          VStack {
-            ProgressView()
-              .scaleEffect(0.8)
-            Text("Loading message content...")
-              .foregroundColor(.secondary)
-          }
-          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-          .padding()
-        } else if let detail = parsedDetail {
-          if selectedTab < availableTabs.count {
-            VStack(alignment: .leading, spacing: 16) {
-              switch availableTabs[selectedTab] {
-              case "Metadata":
-                MessageMetadataView(metadata: detail.metadata)
-              case "Content":
-                if isPatchEmail {
-                  MessageContentView(content: detail.content)
-                } else {
-                  EmailContentView(content: detail.content)
+        GeometryReader { geometry in
+          if isLoadingHtml {
+            VStack {
+              ProgressView()
+                .scaleEffect(0.8)
+              Text("Loading message content...")
+                .foregroundColor(.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: geometry.size.height, alignment: .top)
+            .padding()
+          } else if let detail = parsedDetail {
+            if selectedTab < availableTabs.count {
+              ScrollViewReader { proxy in
+                ScrollView {
+                  VStack(alignment: .leading, spacing: 16) {
+                    switch availableTabs[selectedTab] {
+                    case "Metadata":
+                      MessageMetadataView(metadata: detail.metadata)
+                    case "Content":
+                      if isPatchEmail {
+                        MessageContentView(
+                          content: detail.content,
+                          showFullContent: showFullContent,
+                          currentPage: currentPage
+                        )
+                      } else {
+                        EmailContentView(
+                          content: detail.content,
+                          showFullContent: showFullContent,
+                          currentPage: currentPage
+                        )
+                      }
+                    default:
+                      EmptyView()
+                    }
+                  }
+                  .padding()
+                  .id("content-top")
                 }
-              case "Thread":
-                if let navigation = detail.threadNavigation {
-                  ThreadNavigationView(navigation: navigation) { messageId in
-                    print("Navigate to message: \(messageId)")
+                .frame(maxWidth: .infinity, maxHeight: geometry.size.height, alignment: .top)
+                .onChange(of: currentPage) { _, _ in
+                  withAnimation(.easeInOut(duration: 0.3)) {
+                    proxy.scrollTo("content-top", anchor: .top)
                   }
                 }
-              default:
-                EmptyView()
+                .onChange(of: showFullContent) { _, _ in
+                  withAnimation(.easeInOut(duration: 0.3)) {
+                    proxy.scrollTo("content-top", anchor: .top)
+                  }
+                }
+                .onChange(of: selectedTab) { _, _ in
+                  // Reset content state when switching tabs
+                  showFullContent = false
+                  currentPage = 0
+                }
               }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .padding()
+          } else {
+            Text("No parsed content available")
+              .foregroundColor(.secondary)
+              .frame(maxWidth: .infinity, maxHeight: geometry.size.height, alignment: .top)
+              .padding()
           }
-        } else {
-          Text("No parsed content available")
-            .foregroundColor(.secondary)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .padding()
         }
       } else {
         Text("No message selected")
@@ -259,9 +359,14 @@ struct MessageDetailView: View {
       print("onChange triggered - newMessage: \(newMessage?.subject ?? "nil")")
       if let message = newMessage {
         loadMessageDetail(message: message)
+        // Reset content state when switching messages
+        showFullContent = false
+        currentPage = 0
       } else {
         parsedDetail = nil
         isLoadingHtml = false
+        showFullContent = false
+        currentPage = 0
       }
     }
     .onAppear {
@@ -309,12 +414,25 @@ struct MessageDetailView: View {
         // Update the message with parsed data
         if let parsed = parsed {
           await MainActor.run {
-            message.author = parsed.metadata.author
-            message.recipients = parsed.metadata.recipients
-            message.ccRecipients = parsed.metadata.ccRecipients
-            message.rawHtml = parsed.rawHtml
-            message.permalink = parsed.metadata.permalink
-            message.rawUrl = parsed.metadata.rawUrl
+            // Only update if values have changed to prevent unnecessary SwiftData updates
+            if message.author != parsed.metadata.author {
+              message.author = parsed.metadata.author
+            }
+            if message.recipients != parsed.metadata.recipients {
+              message.recipients = parsed.metadata.recipients
+            }
+            if message.ccRecipients != parsed.metadata.ccRecipients {
+              message.ccRecipients = parsed.metadata.ccRecipients
+            }
+            if message.rawHtml != parsed.rawHtml {
+              message.rawHtml = parsed.rawHtml
+            }
+            if message.permalink != parsed.metadata.permalink {
+              message.permalink = parsed.metadata.permalink
+            }
+            if message.rawUrl != parsed.metadata.rawUrl {
+              message.rawUrl = parsed.metadata.rawUrl
+            }
           }
         }
 

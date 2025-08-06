@@ -12,8 +12,6 @@ import SwiftUI
 struct ListuxApp: App {
   var sharedModelContainer: ModelContainer = {
     let schema = Schema([
-      MailingList.self,
-      Message.self,
       Preference.self,
     ])
     let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)

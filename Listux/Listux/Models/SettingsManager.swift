@@ -24,13 +24,6 @@ class SettingsManager {
         modelContext.delete(preference)
       }
 
-      // Reset all MailingList pin states
-      let mailingListDescriptor = FetchDescriptor<MailingList>()
-      let mailingLists = try modelContext.fetch(mailingListDescriptor)
-      for list in mailingLists {
-        list.isPinned = false
-      }
-
       // Save changes
       try modelContext.save()
 

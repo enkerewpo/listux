@@ -22,8 +22,19 @@ struct MessageListView: View {
     }
   }
 
+  // Sort messages by seqId to maintain stable order
+  private var sortedMessages: [Message] {
+    let sorted = messages.sorted { $0.seqId < $1.seqId }
+    print("MessageListView sortedMessages recalculated: \(sorted.count) messages")
+    for (index, message) in sorted.enumerated() {
+      print("  [\(index)] SeqID: \(message.seqId), Subject: \(message.subject)")
+    }
+    return sorted
+  }
+
   var body: some View {
-    List(messages, id: \.messageId) { message in
+    let _ = print("MessageListView body recalculated for '\(title)' with \(messages.count) messages")
+    return List(sortedMessages, id: \.messageId) { message in
       NavigationLink(destination: MessageDetailView(selectedMessage: message)) {
         SimpleMessageRowView(message: message, preference: preference)
       }
@@ -72,8 +83,19 @@ struct SimpleMessageRowView: View {
             #endif
           }
 
-          #if os(macOS)
-            HStack {
+          // Display sequence ID for debugging
+          HStack {
+            Text("Seq: \(message.seqId)")
+              .font(.system(size: 10))
+              .foregroundColor(.orange)
+              .padding(.horizontal, 4)
+              .padding(.vertical, 1)
+              .background(Color.orange.opacity(0.2))
+              .cornerRadius(2)
+
+            #if os(macOS)
+              Spacer()
+
               Button(action: {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(message.messageId, forType: .string)
@@ -88,12 +110,8 @@ struct SimpleMessageRowView: View {
               }
               .buttonStyle(.plain)
               .help("Copy Message ID")
-
-              Spacer()
-            }
-          #else
-            // iOS clipboard implementation
-            HStack {
+            #else
+              // iOS clipboard implementation
               Button(action: {
                 UIPasteboard.general.string = message.messageId
               }) {
@@ -103,8 +121,8 @@ struct SimpleMessageRowView: View {
               }
               .buttonStyle(.plain)
               .help("Copy Message ID")
-            }
-          #endif
+            #endif
+          }
         }
 
         Spacer()

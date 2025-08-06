@@ -12,7 +12,7 @@ import os
 
 struct ContentView: View {
   @Environment(\.modelContext) private var modelContext
-  @Query(sort: \MailingList.name) private var mailingLists: [MailingList]
+  @State private var mailingLists: [MailingList] = []
   @State private var selectedSidebarTab: SidebarTab = .lists
   @State private var selectedList: MailingList? = nil
   @State private var selectedTag: String? = nil
@@ -90,7 +90,7 @@ struct ContentView: View {
         let html = try await NetworkService.shared.fetchMessageRaw(url: fullUrl)
         let result = Parser.parseMsgsFromListPage(from: html, mailingList: list)
         await MainActor.run {
-          list.orderedMessages = result.messages
+          list.updateOrderedMessages(result.messages)
           messagePageLinks = (result.nextURL, result.prevURL, result.latestURL)
           isLoadingMessages = false
         }
@@ -110,7 +110,7 @@ struct ContentView: View {
         let html = try await NetworkService.shared.fetchListPage(list.name)
         let result = Parser.parseMsgsFromListPage(from: html, mailingList: list)
         await MainActor.run {
-          list.orderedMessages = result.messages
+          list.updateOrderedMessages(result.messages)
           messagePageLinks = (result.nextURL, result.prevURL, result.latestURL)
           isLoadingMessages = false
         }
@@ -129,13 +129,21 @@ struct ContentView: View {
         do {
           let html = try await NetworkService.shared.fetchHomePage()
           let lists = Parser.parseListsFromHomePage(from: html)
-          for list in lists {
-            let mailingList = MailingList(name: list.name, desc: list.desc)
-            modelContext.insert(mailingList)
+          await MainActor.run {
+            for list in lists {
+              let mailingList = MailingList(name: list.name, desc: list.desc)
+              // Restore pin state from preferences
+              if preference.isPinned(mailingList) {
+                mailingList.isPinned = true
+              }
+              mailingLists.append(mailingList)
+            }
+            isLoadingMailingLists = false
           }
-          isLoadingMailingLists = false
         } catch {
-          isLoadingMailingLists = false
+          await MainActor.run {
+            isLoadingMailingLists = false
+          }
         }
       }
     }
@@ -217,6 +225,9 @@ struct ContentView: View {
             selectedTag = nil
             selectedMessage = nil
             selectedSidebarTab = .lists
+            // Reset mailing lists and reload
+            mailingLists.removeAll()
+            loadMailingLists()
           }
         }
       }
@@ -270,6 +281,9 @@ struct ContentView: View {
       .onAppear {
         settingsManager.onDataCleared = {
           selectedSidebarTab = .lists
+          // Reset mailing lists and reload
+          mailingLists.removeAll()
+          loadMailingLists()
         }
       }
     }

@@ -5,38 +5,38 @@ import SwiftUI
 @Model
 final class Preference {
 
-  var favoriteLists: [MailingList] = []
-  var pinnedLists: [MailingList] = []
+  var favoriteLists: [String] = []  // Store list names instead of objects
+  var pinnedLists: [String] = []    // Store list names instead of objects
   var favoriteMessageIds: [String] = []  // Store message IDs as strings for persistence
   var messageTags: [String: [String]] = [:]  // messageId -> [tag1, tag2, ...]
-  var lastViewedList: MailingList?
+  var lastViewedList: String?       // Store list name instead of object
 
   init() {}
 
   func toggleFavorite(_ list: MailingList) {
-    if favoriteLists.contains(list) {
-      favoriteLists.removeAll { $0.id == list.id }
+    if favoriteLists.contains(list.name) {
+      favoriteLists.removeAll { $0 == list.name }
     } else {
-      favoriteLists.append(list)
+      favoriteLists.append(list.name)
     }
   }
 
   func isFavorite(_ list: MailingList) -> Bool {
-    favoriteLists.contains { $0.id == list.id }
+    favoriteLists.contains(list.name)
   }
 
   func togglePinned(_ list: MailingList) {
-    if pinnedLists.contains(list) {
-      pinnedLists.removeAll { $0.id == list.id }
+    if pinnedLists.contains(list.name) {
+      pinnedLists.removeAll { $0 == list.name }
       list.isPinned = false
     } else {
-      pinnedLists.append(list)
+      pinnedLists.append(list.name)
       list.isPinned = true
     }
   }
 
   func isPinned(_ list: MailingList) -> Bool {
-    pinnedLists.contains { $0.id == list.id }
+    pinnedLists.contains(list.name)
   }
 
   func toggleFavoriteMessage(_ messageId: String) {

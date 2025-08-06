@@ -1,20 +1,20 @@
 import Foundation
-import SwiftData
 
-@Model
-final class Message {
+// Non-persistent Message model - only stored in memory
+final class Message: Identifiable, Hashable {
 
+  var id: UUID
   var subject: String
   var content: String
   var timestamp: Date
   var parent: Message?
-  @Relationship(deleteRule: .cascade) var replies: [Message]
-  @Relationship(inverse: \MailingList.messages) var mailingList: MailingList?
+  var replies: [Message] = []
+  var mailingList: MailingList?
   var isExpanded: Bool = false
   var seqId: Int = 0
   var messageId: String = ""
 
-  // New properties for detailed message parsing
+  // Properties for detailed message parsing
   var author: String = ""
   var recipients: [String] = []
   var ccRecipients: [String] = []
@@ -26,6 +26,7 @@ final class Message {
     subject: String, content: String, timestamp: Date, parent: Message? = nil,
     seqId: Int = 0, messageId: String = ""
   ) {
+    self.id = UUID()
     self.subject = subject
     self.content = content
     self.timestamp = timestamp
@@ -33,6 +34,16 @@ final class Message {
     self.replies = []
     self.seqId = seqId
     self.messageId = messageId
+  }
+
+  // Hashable conformance
+  func hash(into hasher: inout Hasher) {
+    hasher.combine(id)
+  }
+
+  // Equatable conformance
+  static func == (lhs: Message, rhs: Message) -> Bool {
+    return lhs.id == rhs.id
   }
 
   func addChild(message: Message) {

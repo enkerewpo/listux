@@ -288,33 +288,25 @@ struct ThreadNavigationView: View {
 
 struct MessageContentView: View {
   let content: String
-  @State private var showFullContent = false
-  @State private var currentPage = 0
+  let showFullContent: Bool
+  let currentPage: Int
 
   private let maxPreviewLength = 5000
   private let pageSize = 5000
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
-      HStack {
-        Text("Message Content")
-          .font(.headline)
+      // HStack {
+      //   Text("Message Content")
+      //     .font(.headline)
 
-        Spacer()
-
-        if content.count > maxPreviewLength {
-          Button(showFullContent ? "Show Less" : "Show More") {
-            showFullContent.toggle()
-          }
-          .buttonStyle(.bordered)
-          .font(.caption)
-        }
-      }
+      //   Spacer()
+      // }
 
       LazyVStack(alignment: .leading, spacing: 8) {
         if showFullContent {
           // Show paginated content
-          PaginatedContentView(content: content, pageSize: pageSize)
+          PaginatedContentView(content: content, pageSize: pageSize, currentPage: currentPage)
         } else {
           ScrollView {
             // Show preview
@@ -333,10 +325,8 @@ struct MessageContentView: View {
                 .foregroundColor(.secondary)
             }
           }
-          .frame(maxHeight: 300, alignment: .top)
         }
       }
-      .frame(maxHeight: .infinity, alignment: .top)
     }
     .padding()
     .background(backgroundColor)
@@ -368,8 +358,7 @@ struct MessageContentView: View {
 struct PaginatedContentView: View {
   let content: String
   let pageSize: Int
-
-  @State private var currentPage = 0
+  let currentPage: Int
 
   private var totalPages: Int {
     (content.count + pageSize - 1) / pageSize
@@ -384,38 +373,6 @@ struct PaginatedContentView: View {
 
   var body: some View {
     VStack(spacing: 0) {
-      // Fixed top page navigation
-      if totalPages > 1 {
-        HStack {
-          Button("←") {
-            if currentPage > 0 {
-              currentPage -= 1
-            }
-          }
-          .disabled(currentPage == 0)
-          .buttonStyle(.bordered)
-
-          Spacer()
-
-          Text("Page \(currentPage + 1) of \(totalPages)")
-            .font(.caption)
-            .foregroundColor(.secondary)
-
-          Spacer()
-
-          Button("→") {
-            if currentPage < totalPages - 1 {
-              currentPage += 1
-            }
-          }
-          .disabled(currentPage == totalPages - 1)
-          .buttonStyle(.bordered)
-        }
-        .padding(.horizontal)
-        .padding(.vertical, 8)
-        .background(Color(NSColor.controlBackgroundColor))
-      }
-
       // Scrollable content
       ScrollView {
         Text(currentPageContent)
@@ -425,15 +382,14 @@ struct PaginatedContentView: View {
           .fixedSize(horizontal: false, vertical: true)
           .padding()
       }
-      .frame(maxWidth: .infinity, maxHeight: 300, alignment: .top)
     }
   }
 }
 
 struct EmailContentView: View {
   let content: String
-  @State private var showFullContent = false
-  @State private var currentPage = 0
+  let showFullContent: Bool
+  let currentPage: Int
 
   private let maxPreviewLength = 3000
   private let maxLinesPerPage = 150
@@ -458,49 +414,9 @@ struct EmailContentView: View {
           .font(.headline)
 
         Spacer()
-
-        if content.count > maxPreviewLength {
-          Button(showFullContent ? "Show Less" : "Show More") {
-            showFullContent.toggle()
-          }
-          .buttonStyle(.bordered)
-          .font(.caption)
-        }
       }
       .padding()
       .background(backgroundColor)
-
-      // Fixed pagination controls (only when showing full content)
-      if showFullContent && totalPages > 1 {
-        HStack {
-          Button("←") {
-            if currentPage > 0 {
-              currentPage -= 1
-            }
-          }
-          .disabled(currentPage == 0)
-          .buttonStyle(.bordered)
-
-          Spacer()
-
-          Text("Page \(currentPage + 1) of \(totalPages)")
-            .font(.caption)
-            .foregroundColor(.secondary)
-
-          Spacer()
-
-          Button("→") {
-            if currentPage < totalPages - 1 {
-              currentPage += 1
-            }
-          }
-          .disabled(currentPage == totalPages - 1)
-          .buttonStyle(.bordered)
-        }
-        .padding(.horizontal)
-        .padding(.vertical, 8)
-        .background(Color(NSColor.controlBackgroundColor))
-      }
 
       // Scrollable content
       ScrollView {
@@ -529,7 +445,6 @@ struct EmailContentView: View {
         }
         .padding()
       }
-      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
     .background(backgroundColor)
     .cornerRadius(8)

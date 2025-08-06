@@ -62,10 +62,19 @@ class Parser {
 
       var seqId = 0  // Sequential id counter
       var lastRootMessage: Message? = nil
+      var seenUrls = Set<String>()  // Track seen URLs to avoid duplicates
 
       for link in links {
         // logger.debug("link=\(link)")
         let url = try link.attr("href")
+        
+        // Skip if we've already seen this URL
+        if seenUrls.contains(url) {
+          logger.debug("Skipping duplicate URL: \(url)")
+          continue
+        }
+        seenUrls.insert(url)
+        
         let subject = try link.text()
         let parent = link.parent()
         let dateText = try parent?.text() ?? ""
@@ -89,15 +98,31 @@ class Parser {
           + url.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         logger.debug("Constructing messageId: \(fullUrl)")
 
-        let message = Message(
-          subject: subject,
-          content: url,
-          timestamp: timestamp,
-          seqId: seqId,  // Assign sequential id
-          // https://lore.kernel.org/loongarch/20250714070438.2399153-1-chenhuacai@loongson.cn
-          messageId: fullUrl
-        )
-        message.mailingList = mailingList
+        // Check if message already exists in the mailing list
+        let existingMessage = mailingList.messages.first { $0.messageId == fullUrl }
+        let message: Message
+        
+        if let existing = existingMessage {
+          // Use existing message and update its properties
+          message = existing
+          message.subject = subject
+          message.timestamp = timestamp
+          message.seqId = seqId
+          logger.debug("Using existing message: \(fullUrl)")
+        } else {
+          // Create new message
+          message = Message(
+            subject: subject,
+            content: url,
+            timestamp: timestamp,
+            seqId: seqId,
+            messageId: fullUrl
+          )
+          // Set mailingList reference for new messages
+          message.mailingList = mailingList
+          logger.debug("Created new message: \(fullUrl)")
+        }
+        
         seqId += 1
 
         let messageId = url.split(separator: "/").first.map(String.init) ?? ""
