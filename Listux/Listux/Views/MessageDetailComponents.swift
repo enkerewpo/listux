@@ -311,12 +311,12 @@ struct MessageContentView: View {
         }
       }
 
-      ScrollView {
-        LazyVStack(alignment: .leading, spacing: 8) {
-          if showFullContent {
-            // Show paginated content
-            PaginatedContentView(content: content, pageSize: pageSize)
-          } else {
+      LazyVStack(alignment: .leading, spacing: 8) {
+        if showFullContent {
+          // Show paginated content
+          PaginatedContentView(content: content, pageSize: pageSize)
+        } else {
+          ScrollView {
             // Show preview
             let previewContent = String(content.prefix(maxPreviewLength))
             let formattedContent = formatEmailContent(previewContent)
@@ -328,14 +328,15 @@ struct MessageContentView: View {
               .fixedSize(horizontal: false, vertical: true)
 
             if content.count > maxPreviewLength {
-              Text("... (content truncated)")
+              Text("... (please click 'Show More' to see the full content)")
                 .font(.caption)
                 .foregroundColor(.secondary)
             }
           }
+          .frame(maxHeight: 300, alignment: .top)
         }
       }
-      .frame(maxHeight: .infinity)
+      .frame(maxHeight: .infinity, alignment: .top)
     }
     .padding()
     .background(backgroundColor)
@@ -382,11 +383,11 @@ struct PaginatedContentView: View {
   }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 8) {
-      // Top page navigation
+    VStack(spacing: 0) {
+      // Fixed top page navigation
       if totalPages > 1 {
         HStack {
-          Button("← Previous") {
+          Button("←") {
             if currentPage > 0 {
               currentPage -= 1
             }
@@ -402,7 +403,7 @@ struct PaginatedContentView: View {
 
           Spacer()
 
-          Button("Next →") {
+          Button("→") {
             if currentPage < totalPages - 1 {
               currentPage += 1
             }
@@ -411,44 +412,20 @@ struct PaginatedContentView: View {
           .buttonStyle(.bordered)
         }
         .padding(.horizontal)
+        .padding(.vertical, 8)
+        .background(Color(NSColor.controlBackgroundColor))
       }
 
-      // Content
-      Text(currentPageContent)
-        .font(.system(.caption, design: .monospaced))
-        .textSelection(.enabled)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .fixedSize(horizontal: false, vertical: true)
-
-      // Bottom page navigation
-      if totalPages > 1 {
-        HStack {
-          Button("← Previous") {
-            if currentPage > 0 {
-              currentPage -= 1
-            }
-          }
-          .disabled(currentPage == 0)
-          .buttonStyle(.bordered)
-
-          Spacer()
-
-          Text("Page \(currentPage + 1) of \(totalPages)")
-            .font(.caption)
-            .foregroundColor(.secondary)
-
-          Spacer()
-
-          Button("Next →") {
-            if currentPage < totalPages - 1 {
-              currentPage += 1
-            }
-          }
-          .disabled(currentPage == totalPages - 1)
-          .buttonStyle(.bordered)
-        }
-        .padding(.horizontal)
+      // Scrollable content
+      ScrollView {
+        Text(currentPageContent)
+          .font(.system(.caption, design: .monospaced))
+          .textSelection(.enabled)
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .fixedSize(horizontal: false, vertical: true)
+          .padding()
       }
+      .frame(maxWidth: .infinity, maxHeight: 300, alignment: .top)
     }
   }
 }
@@ -456,11 +433,26 @@ struct PaginatedContentView: View {
 struct EmailContentView: View {
   let content: String
   @State private var showFullContent = false
+  @State private var currentPage = 0
 
   private let maxPreviewLength = 3000
+  private let maxLinesPerPage = 150
+
+  private var totalPages: Int {
+    let lines = content.components(separatedBy: .newlines)
+    return (lines.count + maxLinesPerPage - 1) / maxLinesPerPage
+  }
+
+  private var currentPageContent: String {
+    let lines = content.components(separatedBy: .newlines)
+    let startIndex = currentPage * maxLinesPerPage
+    let endIndex = min(startIndex + maxLinesPerPage, lines.count)
+    return Array(lines[startIndex..<endIndex]).joined(separator: "\n")
+  }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 8) {
+    VStack(spacing: 0) {
+      // Fixed header
       HStack {
         Text("Email Content")
           .font(.headline)
@@ -475,12 +467,50 @@ struct EmailContentView: View {
           .font(.caption)
         }
       }
+      .padding()
+      .background(backgroundColor)
 
+      // Fixed pagination controls (only when showing full content)
+      if showFullContent && totalPages > 1 {
+        HStack {
+          Button("←") {
+            if currentPage > 0 {
+              currentPage -= 1
+            }
+          }
+          .disabled(currentPage == 0)
+          .buttonStyle(.bordered)
+
+          Spacer()
+
+          Text("Page \(currentPage + 1) of \(totalPages)")
+            .font(.caption)
+            .foregroundColor(.secondary)
+
+          Spacer()
+
+          Button("→") {
+            if currentPage < totalPages - 1 {
+              currentPage += 1
+            }
+          }
+          .disabled(currentPage == totalPages - 1)
+          .buttonStyle(.bordered)
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+        .background(Color(NSColor.controlBackgroundColor))
+      }
+
+      // Scrollable content
       ScrollView {
         VStack(alignment: .leading, spacing: 12) {
           if showFullContent {
             // Show full content with pagination
-            PaginatedEmailContentView(content: content)
+            let emailParts = parseEmailContent(currentPageContent)
+            ForEach(emailParts, id: \.self) { part in
+              EmailContentPartView(part: part)
+            }
           } else {
             // Show preview
             let previewContent = String(content.prefix(maxPreviewLength))
@@ -491,16 +521,16 @@ struct EmailContentView: View {
             }
 
             if content.count > maxPreviewLength {
-              Text("... (content truncated)")
+              Text("... (please click 'Show More' to see the full content)")
                 .font(.caption)
                 .foregroundColor(.secondary)
             }
           }
         }
+        .padding()
       }
-      .frame(maxHeight: .infinity)
+      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
-    .padding()
     .background(backgroundColor)
     .cornerRadius(8)
   }
@@ -548,134 +578,7 @@ struct EmailContentView: View {
 
     return parts
   }
-}
 
-struct PaginatedEmailContentView: View {
-  let content: String
-  @State private var currentPage = 0
-
-  private let pageSize = 3000
-  private let maxLinesPerPage = 150
-
-  private var totalPages: Int {
-    let lines = content.components(separatedBy: .newlines)
-    return (lines.count + maxLinesPerPage - 1) / maxLinesPerPage
-  }
-
-  private var currentPageContent: String {
-    let lines = content.components(separatedBy: .newlines)
-    let startIndex = currentPage * maxLinesPerPage
-    let endIndex = min(startIndex + maxLinesPerPage, lines.count)
-    return Array(lines[startIndex..<endIndex]).joined(separator: "\n")
-  }
-
-  var body: some View {
-    VStack(alignment: .leading, spacing: 8) {
-      // Top page navigation
-      if totalPages > 1 {
-        HStack {
-          Button("← Previous") {
-            if currentPage > 0 {
-              currentPage -= 1
-            }
-          }
-          .disabled(currentPage == 0)
-          .buttonStyle(.bordered)
-
-          Spacer()
-
-          Text("Page \(currentPage + 1) of \(totalPages)")
-            .font(.caption)
-            .foregroundColor(.secondary)
-
-          Spacer()
-
-          Button("Next →") {
-            if currentPage < totalPages - 1 {
-              currentPage += 1
-            }
-          }
-          .disabled(currentPage == totalPages - 1)
-          .buttonStyle(.bordered)
-        }
-        .padding(.horizontal)
-      }
-
-      // Content
-      let emailParts = parseEmailContent(currentPageContent)
-      VStack(alignment: .leading, spacing: 8) {
-        ForEach(emailParts, id: \.self) { part in
-          EmailContentPartView(part: part)
-        }
-      }
-
-      // Bottom page navigation
-      if totalPages > 1 {
-        HStack {
-          Button("← Previous") {
-            if currentPage > 0 {
-              currentPage -= 1
-            }
-          }
-          .disabled(currentPage == 0)
-          .buttonStyle(.bordered)
-
-          Spacer()
-
-          Text("Page \(currentPage + 1) of \(totalPages)")
-            .font(.caption)
-            .foregroundColor(.secondary)
-
-          Spacer()
-
-          Button("Next →") {
-            if currentPage < totalPages - 1 {
-              currentPage += 1
-            }
-          }
-          .disabled(currentPage == totalPages - 1)
-          .buttonStyle(.bordered)
-        }
-        .padding(.horizontal)
-      }
-    }
-  }
-
-  private func parseEmailContent(_ content: String) -> [String] {
-    // Split content into logical parts (greeting, body, signature, etc.)
-    let lines = content.components(separatedBy: .newlines)
-    var parts: [String] = []
-    var currentPart = ""
-
-    for line in lines {
-      let trimmedLine = line.trimmingCharacters(in: .whitespaces)
-
-      // Check for email structure markers
-      if trimmedLine.hasPrefix("Hi,") || trimmedLine.hasPrefix("Hello,")
-        || trimmedLine.hasPrefix("Dear")
-      {
-        if !currentPart.isEmpty {
-          parts.append(currentPart.trimmingCharacters(in: .whitespacesAndNewlines))
-        }
-        currentPart = line
-      } else if trimmedLine.hasPrefix("Best regards") || trimmedLine.hasPrefix("Thanks")
-        || trimmedLine.hasPrefix("Regards") || trimmedLine.hasPrefix("Sincerely")
-      {
-        if !currentPart.isEmpty {
-          parts.append(currentPart.trimmingCharacters(in: .whitespacesAndNewlines))
-        }
-        currentPart = line
-      } else {
-        currentPart += "\n" + line
-      }
-    }
-
-    if !currentPart.isEmpty {
-      parts.append(currentPart.trimmingCharacters(in: .whitespacesAndNewlines))
-    }
-
-    return parts
-  }
 }
 
 struct EmailContentPartView: View {
