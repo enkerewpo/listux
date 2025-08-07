@@ -1,5 +1,7 @@
 import SwiftUI
+#if os(macOS)
 import AppKit
+#endif
 
 @Observable
 class WindowLayoutManager {
@@ -8,6 +10,7 @@ class WindowLayoutManager {
   private init() {}
   
   func calculateInitialWindowSize() -> (width: Double, height: Double) {
+    #if os(macOS)
     guard let screen = NSScreen.main else {
       return (1200, 800)
     }
@@ -17,6 +20,10 @@ class WindowLayoutManager {
     let targetHeight = screenSize.height * 0.75
     
     return (targetWidth, targetHeight)
+    #else
+    // iOS: Return default size for iPad or iPhone
+    return (1200, 800)
+    #endif
   }
   
   func calculateOptimalLayout(for windowWidth: Double) -> (sidebar: Double, messageList: Double, detail: Double) {
