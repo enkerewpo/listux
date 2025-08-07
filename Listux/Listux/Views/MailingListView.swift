@@ -146,10 +146,10 @@ struct MailingListMessageView: View {
 
   private func loadMessages() {
     guard !isLoading else { return }
-    
+
     isLoading = true
     print("MailingListMessageView: Loading initial messages for \(mailingList.name)")
-    
+
     Task {
       do {
         let html = try await NetworkService.shared.fetchListPage(mailingList.name)
@@ -168,20 +168,22 @@ struct MailingListMessageView: View {
       }
     }
   }
-  
+
   private func loadMoreMessages() async {
     guard let nextURL = nextURL, !hasReachedEnd, !isLoadingMore else {
-      print("MailingListMessageView: Skipping loadMoreMessages - nextURL: \(nextURL != nil), hasReachedEnd: \(hasReachedEnd), isLoadingMore: \(isLoadingMore)")
+      print(
+        "MailingListMessageView: Skipping loadMoreMessages - nextURL: \(nextURL != nil), hasReachedEnd: \(hasReachedEnd), isLoadingMore: \(isLoadingMore)"
+      )
       return
     }
-    
+
     isLoadingMore = true
     print("MailingListMessageView: Loading more messages from \(nextURL)")
-    
+
     do {
       let html = try await NetworkService.shared.fetchURL(nextURL)
       let result = Parser.parseMsgsFromListPage(from: html, mailingList: mailingList)
-      
+
       await MainActor.run {
         messages.append(contentsOf: result.messages)
         self.nextURL = result.nextURL
@@ -189,7 +191,9 @@ struct MailingListMessageView: View {
           hasReachedEnd = true
         }
         isLoadingMore = false
-        print("MailingListMessageView: Loaded \(result.messages.count) more messages, hasReachedEnd: \(hasReachedEnd)")
+        print(
+          "MailingListMessageView: Loaded \(result.messages.count) more messages, hasReachedEnd: \(hasReachedEnd)"
+        )
       }
     } catch {
       await MainActor.run {

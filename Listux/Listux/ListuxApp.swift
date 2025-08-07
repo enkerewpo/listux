@@ -7,6 +7,7 @@
 
 import SwiftData
 import SwiftUI
+import os.log
 
 @main
 struct ListuxApp: App {
@@ -19,22 +20,24 @@ struct ListuxApp: App {
 
     do {
       let container = try ModelContainer(for: schema, configurations: [modelConfiguration])
-      
+
       // Debug: Check if FavoriteMessage data persists
       let context = container.mainContext
       let descriptor = FetchDescriptor<FavoriteMessage>()
       do {
         let favorites = try context.fetch(descriptor)
-        print("ListuxApp: Found \(favorites.count) favorite messages on app startup")
+        LogManager.shared.info("Found \(favorites.count) favorite messages on app startup")
         for favorite in favorites {
-          print("ListuxApp: - \(favorite.messageId): \(favorite.subject) (tags: \(favorite.tags))")
+          LogManager.shared.debug(
+            "Favorite message: \(favorite.messageId): \(favorite.subject) (tags: \(favorite.tags))")
         }
       } catch {
-        print("ListuxApp: Error fetching favorites on startup: \(error)")
+        LogManager.shared.error("Error fetching favorites on startup: \(error)")
       }
-      
+
       return container
     } catch {
+      LogManager.shared.fault("Could not create ModelContainer: \(error)")
       fatalError("Could not create ModelContainer: \(error)")
     }
   }()
@@ -42,6 +45,9 @@ struct ListuxApp: App {
   var body: some Scene {
     WindowGroup {
       ContentView()
+        .onAppear {
+          LogManager.shared.info("Listux app started successfully")
+        }
     }
     .modelContainer(sharedModelContainer)
     #if os(macOS)
@@ -63,6 +69,11 @@ struct ListuxApp: App {
             SettingsManager.shared.openSettings()
           }
           .keyboardShortcut(",", modifiers: [.command])
+
+          Button("Open Log Directory") {
+            LogManager.shared.openLogDirectory()
+          }
+          .keyboardShortcut("l", modifiers: [.command, .option])
         }
       }
     #endif

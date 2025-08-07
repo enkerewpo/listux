@@ -39,7 +39,7 @@ struct MessageDetailView: View {
     guard let detail = parsedDetail else { return false }
     return !detail.diffContent.isEmpty
   }
-  
+
   private var hasMultiplePages: Bool {
     guard let detail = parsedDetail else { return false }
     if isPatchEmail {
@@ -49,7 +49,7 @@ struct MessageDetailView: View {
       return lines.count > 150
     }
   }
-  
+
   private var totalPages: Int {
     guard let detail = parsedDetail else { return 1 }
     if isPatchEmail {
@@ -95,9 +95,9 @@ struct MessageDetailView: View {
             Text(msg.timestamp, style: .date)
               .font(.caption)
               .foregroundColor(.secondary)
-            
+
             Spacer()
-            
+
             // Message ID and copy functionality - compact version
             Button(action: {
               #if os(macOS)
@@ -194,9 +194,9 @@ struct MessageDetailView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         #if os(macOS)
-        .background(Color(NSColor.controlBackgroundColor))
+          .background(Color(NSColor.controlBackgroundColor))
         #else
-        .background(Color(UIColor.systemBackground))
+          .background(Color(UIColor.systemBackground))
         #endif
 
         // Fixed toolbar - NO SCROLLING
@@ -222,7 +222,7 @@ struct MessageDetailView: View {
                     .cornerRadius(4)
                   }
                   .buttonStyle(.plain)
-                  
+
                   if index < availableTabs.count - 1 {
                     Divider()
                       .frame(height: 16)
@@ -235,9 +235,9 @@ struct MessageDetailView: View {
               .background(Color.secondary.opacity(0.1))
               .cornerRadius(6)
             }
-            
+
             Spacer()
-            
+
             // Content controls (only for Content tab)
             if selectedTab < availableTabs.count && availableTabs[selectedTab] == "Content" {
               // Show More/Less button
@@ -250,7 +250,7 @@ struct MessageDetailView: View {
                 .font(.caption2)
                 .controlSize(.small)
               }
-              
+
               // Pagination controls (only when showing full content)
               if showFullContent && totalPages > 1 {
                 Button("←") {
@@ -262,12 +262,12 @@ struct MessageDetailView: View {
                 .buttonStyle(.bordered)
                 .font(.caption2)
                 .controlSize(.small)
-                
+
                 Text("\(currentPage + 1) / \(totalPages)")
                   .font(.caption2)
                   .foregroundColor(.secondary)
                   .frame(minWidth: 50)
-                
+
                 Button("→") {
                   if currentPage < totalPages - 1 {
                     currentPage += 1
@@ -283,9 +283,9 @@ struct MessageDetailView: View {
           .padding(.horizontal, 12)
           .padding(.vertical, 4)
           #if os(macOS)
-          .background(Color(NSColor.controlBackgroundColor))
+            .background(Color(NSColor.controlBackgroundColor))
           #else
-          .background(Color(UIColor.systemBackground))
+            .background(Color(UIColor.systemBackground))
           #endif
         }
 

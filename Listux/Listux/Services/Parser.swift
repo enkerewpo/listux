@@ -67,14 +67,14 @@ class Parser {
       for link in links {
         // logger.debug("link=\(link)")
         let url = try link.attr("href")
-        
+
         // Skip if we've already seen this URL
         if seenUrls.contains(url) {
           logger.debug("Skipping duplicate URL: \(url)")
           continue
         }
         seenUrls.insert(url)
-        
+
         let subject = try link.text()
         let parent = link.parent()
         let dateText = try parent?.text() ?? ""
@@ -101,7 +101,7 @@ class Parser {
         // Check if message already exists in the mailing list
         let existingMessage = mailingList.messages.first { $0.messageId == fullUrl }
         let message: Message
-        
+
         if let existing = existingMessage {
           // Use existing message and update its properties
           message = existing
@@ -122,7 +122,7 @@ class Parser {
           message.mailingList = mailingList
           logger.debug("Created new message: \(fullUrl)")
         }
-        
+
         seqId += 1
 
         let messageId = url.split(separator: "/").first.map(String.init) ?? ""

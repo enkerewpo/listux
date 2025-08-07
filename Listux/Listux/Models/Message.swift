@@ -21,7 +21,7 @@ final class Message: Identifiable, Hashable, ObservableObject {
   var rawHtml: String = ""
   var permalink: String = ""
   var rawUrl: String = ""
-  
+
   // Favorite and tag properties (synced with persistent storage)
   @Published var isFavorite: Bool = false
   @Published var tags: [String] = []
@@ -69,7 +69,7 @@ final class Message: Identifiable, Hashable, ObservableObject {
   func removeParent() {
     parent = nil
   }
-  
+
   // Methods for syncing with persistent storage
   @MainActor
   func syncWithPersistentStorage(_ favoriteMessage: FavoriteMessage?) {
@@ -81,15 +81,17 @@ final class Message: Identifiable, Hashable, ObservableObject {
       self.tags = []
     }
   }
-  
+
   func toFavoriteMessage() -> FavoriteMessage? {
-    guard !messageId.isEmpty && !subject.isEmpty else { 
-      print("Message.toFavoriteMessage: messageId or subject is empty - messageId: '\(messageId)', subject: '\(subject)'")
-      return nil 
+    guard !messageId.isEmpty && !subject.isEmpty else {
+      print(
+        "Message.toFavoriteMessage: messageId or subject is empty - messageId: '\(messageId)', subject: '\(subject)'"
+      )
+      return nil
     }
-    
+
     print("Message.toFavoriteMessage: Creating favorite message for messageId: \(messageId)")
-    
+
     let favoriteMessage = FavoriteMessage()
     favoriteMessage.messageId = messageId
     favoriteMessage.subject = subject
@@ -100,7 +102,7 @@ final class Message: Identifiable, Hashable, ObservableObject {
     favoriteMessage.tags = tags
     favoriteMessage.mailingListName = mailingList?.name ?? ""
     favoriteMessage.seqId = seqId
-    
+
     print("Message.toFavoriteMessage: Created favorite message successfully")
     return favoriteMessage
   }

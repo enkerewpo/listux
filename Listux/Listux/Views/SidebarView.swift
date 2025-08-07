@@ -238,10 +238,12 @@ struct SidebarView: View {
                 Text(tag)
                   .font(.system(size: 13, weight: .medium))
                   .lineLimit(1)
-                Text("\(getMessageCount(for: tag)) message\(getMessageCount(for: tag) == 1 ? "" : "s")")
-                  .font(.system(size: 11))
-                  .foregroundColor(.secondary)
-                  .lineLimit(1)
+                Text(
+                  "\(getMessageCount(for: tag)) message\(getMessageCount(for: tag) == 1 ? "" : "s")"
+                )
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+                .lineLimit(1)
               }
 
               Spacer()
@@ -276,7 +278,7 @@ struct SidebarView: View {
       return favoriteMessageService.getMessagesWithTag(tag).count
     }
   }
-  
+
   private var listStyle: some ListStyle {
     #if os(macOS)
       .sidebar

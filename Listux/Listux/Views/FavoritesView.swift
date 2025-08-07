@@ -42,7 +42,7 @@ struct FavoritesView: View {
       favoriteMessageService.setModelContext(modelContext)
       favoriteMessageService.verifyPersistence()
     }
-    .id(forceRefresh) // Force view refresh when data is cleared
+    .id(forceRefresh)  // Force view refresh when data is cleared
   }
 }
 
@@ -80,33 +80,33 @@ struct FavoritesMessageView: View {
       favoriteMessageService.verifyPersistence()
       loadMessages()
     }
-    .id(forceRefresh) // Force view refresh when data is cleared
+    .id(forceRefresh)  // Force view refresh when data is cleared
   }
 
   private func loadMessages() {
     print("FavoritesMessageView: Loading messages for tag '\(tag)'")
     isLoading = true
-    
+
     // Ensure we have the latest data from persistent storage
     favoriteMessageService.setModelContext(modelContext)
-    
+
     let messageIds: [String]
     if tag == "Untagged" {
       messageIds = favoriteMessageService.getUntaggedMessages()
     } else {
       messageIds = favoriteMessageService.getMessagesWithTag(tag)
     }
-    
+
     print("FavoritesMessageView: Found \(messageIds.count) message IDs for tag '\(tag)'")
-    
+
     // Create messages directly from FavoriteMessage data
     var createdMessages: [Message] = []
-    
+
     for messageId in messageIds {
       if let favoriteMessage = favoriteMessageService.getFavoriteMessage(messageId: messageId) {
         let message = Message(
           subject: favoriteMessage.subject,
-          content: "", // We don't store content in FavoriteMessage
+          content: "",  // We don't store content in FavoriteMessage
           timestamp: favoriteMessage.timestamp,
           seqId: favoriteMessage.seqId,
           messageId: favoriteMessage.messageId
@@ -116,18 +116,18 @@ struct FavoritesMessageView: View {
         message.rawUrl = favoriteMessage.rawUrl
         message.isFavorite = true
         message.tags = favoriteMessage.tags
-        
+
         // Create a dummy mailing list for the message
         let mailingList = MailingList(name: favoriteMessage.mailingListName, desc: "")
         message.mailingList = mailingList
-        
+
         createdMessages.append(message)
       }
     }
 
     messages = createdMessages.sorted { $0.timestamp > $1.timestamp }
     isLoading = false
-    
+
     print("FavoritesMessageView: Loaded \(messages.count) messages for tag '\(tag)'")
   }
 }

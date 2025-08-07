@@ -11,8 +11,8 @@ class MessageDetailParser {
   // Performance constants
   private static let maxDiffLinesPerChunk = 1000
   private static let maxDiffFilesToParse = 50
-  private static let maxContentLength = 5000000  // 50KB limit for content
-  private static let maxContentLines = 5000000  // 2000 lines limit for content
+  private static let maxContentLength = 5_000_000  // 50KB limit for content
+  private static let maxContentLines = 5_000_000  // 2000 lines limit for content
 
   static func parseMessageDetail(from html: String, messageId: String) -> ParsedMessageDetail? {
     do {

@@ -5,9 +5,9 @@ import SwiftUI
 @Model
 final class Preference {
 
-  var pinnedLists: [String] = []    // Store list names instead of objects
-  var lastViewedList: String?       // Store list name instead of object
-  
+  var pinnedLists: [String] = []  // Store list names instead of objects
+  var lastViewedList: String?  // Store list name instead of object
+
   // Window layout preferences
   var sidebarWidth: Double = 320
   var messageListWidth: Double = 500

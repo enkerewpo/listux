@@ -33,37 +33,37 @@ final class MailingList: Identifiable, Equatable, Hashable {
   // Computed property to get ordered messages
   var orderedMessages: [Message] {
     let messageDict = Dictionary(uniqueKeysWithValues: messages.map { ($0.messageId, $0) })
-    
+
     // Remove duplicates from orderedMessageIds while preserving order
     var seenIds = Set<String>()
     var uniqueOrderedIds: [String] = []
-    
+
     for messageId in orderedMessageIds {
       if !seenIds.contains(messageId) {
         seenIds.insert(messageId)
         uniqueOrderedIds.append(messageId)
       }
     }
-    
+
     let ordered = uniqueOrderedIds.compactMap { messageDict[$0] }
-    
+
     // Debug logging to track order changes
     print("MailingList '\(name)' orderedMessages: \(ordered.count) messages")
     for (index, message) in ordered.enumerated() {
       print("  [\(index)] SeqID: \(message.seqId), Subject: \(message.subject)")
     }
-    
+
     return ordered
   }
 
   // Method to update ordered messages
   func updateOrderedMessages(_ messages: [Message]) {
     print("Updating ordered messages for '\(name)': \(messages.count) messages")
-    
+
     // Remove duplicates while preserving order
     var seenIds = Set<String>()
     var uniqueMessages: [Message] = []
-    
+
     for message in messages {
       if !seenIds.contains(message.messageId) {
         seenIds.insert(message.messageId)
@@ -73,7 +73,7 @@ final class MailingList: Identifiable, Equatable, Hashable {
         print("  Skipping duplicate message: \(message.messageId)")
       }
     }
-    
+
     // Update both messages array and ordered IDs
     self.messages = uniqueMessages
     orderedMessageIds = uniqueMessages.map { $0.messageId }

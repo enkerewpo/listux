@@ -149,7 +149,8 @@ struct TaggedMessageRowView: View {
     }
     .animation(Animation.userPreferenceQuick, value: isHovered)
     .animation(
-      Animation.userPreferenceQuick, value: selectedMessage?.messageId == message.messageId)
+      Animation.userPreferenceQuick, value: selectedMessage?.messageId == message.messageId
+    )
     .onAppear {
       favoriteMessageService.setModelContext(modelContext)
     }
@@ -267,8 +268,8 @@ struct TagItemView: View {
       Image(systemName: tag == "Untagged" ? "tag.slash" : "tag")
         .font(.system(size: 12))
         .foregroundColor(
-          isSelected 
-            ? .white 
+          isSelected
+            ? .white
             : (tag == "Untagged" ? .secondary : .blue)
         )
 

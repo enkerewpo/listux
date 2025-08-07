@@ -43,7 +43,7 @@ struct MessageListView: View {
     }
     return sorted
   }
-  
+
   private func alternatingRowColor(for index: Int) -> Color {
     if index % 2 == 0 {
       return Color.clear
@@ -65,7 +65,7 @@ struct MessageListView: View {
             .opacity(0.3)
         )
       }
-      
+
       if isLoadingMore {
         HStack {
           Spacer()
@@ -76,14 +76,14 @@ struct MessageListView: View {
       }
     }
   }
-  
+
   var body: some View {
     let sortedMessages = self.sortedMessages
     let messageCount = messages.count
     let title = self.title
-    
+
     print("MessageListView body recalculated for '\(title)' with \(messageCount) messages")
-    
+
     return ScrollView {
       messageListContent
         .background(
@@ -130,33 +130,37 @@ struct MessageListView: View {
       favoriteMessageService.setModelContext(modelContext)
     }
   }
-  
+
   private func checkForAutoLoad() {
     // Only check if we have an onLoadMore function and we're not already loading
     guard let onLoadMore = onLoadMore, !isLoadingMore, !hasReachedEnd else {
       return
     }
-    
+
     // Check if content height is greater than scroll view height (indicating scrollable content)
     // and if we're close to the bottom (within 100 points)
     let scrollableContent = contentHeight - scrollViewHeight
     if scrollableContent > 0 && scrollableContent < 100 {
-      print("MessageListView: Triggering auto-load - contentHeight: \(contentHeight), scrollViewHeight: \(scrollViewHeight)")
+      print(
+        "MessageListView: Triggering auto-load - contentHeight: \(contentHeight), scrollViewHeight: \(scrollViewHeight)"
+      )
       DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
         loadMoreMessages()
       }
     }
   }
-  
+
   private func loadMoreMessages() {
     guard let onLoadMore = onLoadMore, !isLoadingMore, !hasReachedEnd else {
-      print("MessageListView: Skipping loadMoreMessages - onLoadMore: \(onLoadMore != nil), isLoadingMore: \(isLoadingMore), hasReachedEnd: \(hasReachedEnd)")
+      print(
+        "MessageListView: Skipping loadMoreMessages - onLoadMore: \(onLoadMore != nil), isLoadingMore: \(isLoadingMore), hasReachedEnd: \(hasReachedEnd)"
+      )
       return
     }
-    
+
     isLoadingMore = true
     print("MessageListView: Triggering load more messages")
-    
+
     Task {
       await onLoadMore()
       await MainActor.run {
@@ -165,8 +169,6 @@ struct MessageListView: View {
     }
   }
 }
-
-
 
 struct CompactMessageRowView: View {
   @ObservedObject var message: Message
@@ -189,9 +191,9 @@ struct CompactMessageRowView: View {
         .lineLimit(1)
         .truncationMode(.tail)
         .foregroundColor(.primary)
-      
+
       Spacer()
-      
+
       // 右边：工具按钮
       HStack(spacing: 4) {
         if isFavorite {
@@ -202,7 +204,7 @@ struct CompactMessageRowView: View {
             }
           }
         }
-        
+
         Button(action: {
           showingTagInput = true
         }) {
@@ -212,45 +214,13 @@ struct CompactMessageRowView: View {
         }
         .buttonStyle(.plain)
         #if os(macOS)
-        .popover(isPresented: $showingTagInput) {
-          VStack(spacing: 8) {
-            Text("Add Tag")
-              .font(.headline)
-
-            TextField("Tag name", text: $newTag)
-              .textFieldStyle(RoundedBorderTextFieldStyle())
-
-            HStack {
-              Button("Cancel") {
-                showingTagInput = false
-                newTag = ""
-              }
-
-              Button("Add") {
-                if !newTag.isEmpty {
-                  favoriteMessageService.addTag(newTag, to: message.messageId)
-                  if !message.tags.contains(newTag) {
-                    message.tags.append(newTag)
-                  }
-                  newTag = ""
-                }
-                showingTagInput = false
-              }
-              .disabled(newTag.isEmpty)
-            }
-          }
-          .padding()
-          .frame(width: 200)
-        }
-        #else
-        .sheet(isPresented: $showingTagInput) {
-          NavigationView {
+          .popover(isPresented: $showingTagInput) {
             VStack(spacing: 8) {
               Text("Add Tag")
-                .font(.headline)
+              .font(.headline)
 
               TextField("Tag name", text: $newTag)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
+              .textFieldStyle(RoundedBorderTextFieldStyle())
 
               HStack {
                 Button("Cancel") {
@@ -272,13 +242,46 @@ struct CompactMessageRowView: View {
               }
             }
             .padding()
-            .navigationBarItems(trailing: Button("Done") {
-              showingTagInput = false
-            })
+            .frame(width: 200)
           }
-        }
+        #else
+          .sheet(isPresented: $showingTagInput) {
+            NavigationView {
+              VStack(spacing: 8) {
+                Text("Add Tag")
+                .font(.headline)
+
+                TextField("Tag name", text: $newTag)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+
+                HStack {
+                  Button("Cancel") {
+                    showingTagInput = false
+                    newTag = ""
+                  }
+
+                  Button("Add") {
+                    if !newTag.isEmpty {
+                      favoriteMessageService.addTag(newTag, to: message.messageId)
+                      if !message.tags.contains(newTag) {
+                        message.tags.append(newTag)
+                      }
+                      newTag = ""
+                    }
+                    showingTagInput = false
+                  }
+                  .disabled(newTag.isEmpty)
+                }
+              }
+              .padding()
+              .navigationBarItems(
+                trailing: Button("Done") {
+                  showingTagInput = false
+                })
+            }
+          }
         #endif
-        
+
         Button(action: {
           withAnimation(AnimationConstants.quick) {
             favoriteMessageService.toggleFavorite(message)
@@ -296,14 +299,14 @@ struct CompactMessageRowView: View {
     .background(
       RoundedRectangle(cornerRadius: 8)
         .fill(
-          isHovered 
+          isHovered
             ? Color.accentColor.opacity(0.1)
             : Color.clear
         )
         .overlay(
           RoundedRectangle(cornerRadius: 8)
             .stroke(
-              isHovered 
+              isHovered
                 ? Color.accentColor.opacity(0.3)
                 : Color.clear,
               lineWidth: 1
@@ -311,11 +314,11 @@ struct CompactMessageRowView: View {
         )
     )
     #if os(macOS)
-    .onHover { hovering in
-      withAnimation(AnimationConstants.quick) {
-        isHovered = hovering
+      .onHover { hovering in
+        withAnimation(AnimationConstants.quick) {
+          isHovered = hovering
+        }
       }
-    }
     #endif
     .onAppear {
       favoriteMessageService.setModelContext(modelContext)
@@ -325,4 +328,3 @@ struct CompactMessageRowView: View {
     }
   }
 }
-
