@@ -20,10 +20,10 @@ struct TagAddButton: View {
       .popover(isPresented: $showingTagInput) {
         VStack(spacing: 8) {
           Text("Add Tag")
-          .font(.headline)
+            .font(.headline)
 
           TextField("Tag name", text: $newTag)
-          .textFieldStyle(RoundedBorderTextFieldStyle())
+            .textFieldStyle(RoundedBorderTextFieldStyle())
 
           HStack {
             Button("Cancel") {
@@ -32,11 +32,7 @@ struct TagAddButton: View {
             }
 
             Button("Add") {
-              if !newTag.isEmpty {
-                favoriteMessageService.addTag(newTag, to: messageId)
-                newTag = ""
-              }
-              showingTagInput = false
+              addTag()
             }
             .disabled(newTag.isEmpty)
           }
@@ -52,11 +48,7 @@ struct TagAddButton: View {
           newTag = ""
         }
         Button("Add") {
-          if !newTag.isEmpty {
-            favoriteMessageService.addTag(newTag, to: messageId)
-            newTag = ""
-          }
-          showingTagInput = false
+          addTag()
         }
       } message: {
         Text("Enter a tag name for this message")
@@ -65,8 +57,13 @@ struct TagAddButton: View {
     .onAppear {
       favoriteMessageService.setModelContext(modelContext)
     }
-    .task {
-      favoriteMessageService.setModelContext(modelContext)
+  }
+  
+  private func addTag() {
+    if !newTag.isEmpty {
+      favoriteMessageService.addTag(newTag, to: messageId)
+      newTag = ""
     }
+    showingTagInput = false
   }
 }
