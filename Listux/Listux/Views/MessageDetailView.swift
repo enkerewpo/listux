@@ -10,8 +10,6 @@ struct MessageDetailView: View {
   @State private var parsedDetail: ParsedMessageDetail?
   @State private var isLoadingHtml: Bool = false
   @State private var isFavoriteAnimating: Bool = false
-  @State private var showingTagInput: Bool = false
-  @State private var newTag: String = ""
   @State private var selectedTab: Int = 0
   @State private var showFullContent: Bool = false
   @State private var currentPage: Int = 0
@@ -118,44 +116,7 @@ struct MessageDetailView: View {
           // Tags section - compact version
           if isFavorite {
             HStack {
-              Button(action: {
-                showingTagInput = true
-              }) {
-                Image(systemName: "plus.circle")
-                  .font(.system(size: 14))
-                  .foregroundColor(.blue)
-              }
-              .buttonStyle(.plain)
-              .popover(isPresented: $showingTagInput) {
-                VStack(spacing: 8) {
-                  Text("Add Tag")
-                    .font(.headline)
-
-                  TextField("Tag name", text: $newTag)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-
-                  HStack {
-                    Button("Cancel") {
-                      showingTagInput = false
-                      newTag = ""
-                    }
-
-                    Button("Add") {
-                      if !newTag.isEmpty {
-                        favoriteMessageService.addTag(newTag, to: msg.messageId)
-                        if !msg.tags.contains(newTag) {
-                          msg.tags.append(newTag)
-                        }
-                        newTag = ""
-                      }
-                      showingTagInput = false
-                    }
-                    .disabled(newTag.isEmpty)
-                  }
-                }
-                .padding()
-                .frame(width: 200)
-              }
+              TagAddButton(messageId: msg.messageId)
 
               if !msg.tags.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {

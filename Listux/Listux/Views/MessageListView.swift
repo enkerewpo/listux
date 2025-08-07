@@ -57,6 +57,7 @@ struct MessageListView: View {
     LazyVStack(spacing: 0) {
       ForEach(Array(sortedMessages.enumerated()), id: \.element.messageId) { index, message in
         Button(action: {
+          print("MessageListView: Button tapped for message: \(message.subject)")
           withAnimation(AnimationConstants.quick) {
             selectedMessage = message
           }
@@ -84,6 +85,9 @@ struct MessageListView: View {
     }
     .padding(.leading, 8)
     .padding(.trailing, 8)
+    #if os(iOS)
+      .padding(.top, 0)
+    #endif
   }
 
   var body: some View {
@@ -107,6 +111,10 @@ struct MessageListView: View {
           }
         )
     }
+    #if os(iOS)
+      .scrollContentBackground(.hidden)
+      .scrollIndicators(.hidden)
+    #endif
     .background(
       GeometryReader { scrollGeometry in
         Color.clear
@@ -125,6 +133,9 @@ struct MessageListView: View {
       checkForAutoLoad()
     }
     .navigationTitle(title)
+    #if os(iOS)
+      .navigationBarTitleDisplayMode(.inline)
+    #endif
     .overlay(
       Group {
         if isLoading && messages.isEmpty {
@@ -183,8 +194,6 @@ struct CompactMessageRowView: View {
   @ObservedObject var message: Message
   let preference: Preference
   let isSelected: Bool
-  @State private var showingTagInput: Bool = false
-  @State private var newTag: String = ""
   @State private var favoriteMessageService = FavoriteMessageService.shared
   @Environment(\.modelContext) private var modelContext
   @State private var isHovered: Bool = false
@@ -214,84 +223,9 @@ struct CompactMessageRowView: View {
               message.tags.removeAll { $0 == tag }
             }
           }
+
+          TagAddButton(messageId: message.messageId)
         }
-
-        Button(action: {
-          showingTagInput = true
-        }) {
-          Image(systemName: "plus.circle")
-            .font(.system(size: 10))
-            .foregroundColor(.blue)
-        }
-        .buttonStyle(.plain)
-        #if os(macOS)
-          .popover(isPresented: $showingTagInput) {
-            VStack(spacing: 8) {
-              Text("Add Tag")
-              .font(.headline)
-
-              TextField("Tag name", text: $newTag)
-              .textFieldStyle(RoundedBorderTextFieldStyle())
-
-              HStack {
-                Button("Cancel") {
-                  showingTagInput = false
-                  newTag = ""
-                }
-
-                Button("Add") {
-                  if !newTag.isEmpty {
-                    favoriteMessageService.addTag(newTag, to: message.messageId)
-                    if !message.tags.contains(newTag) {
-                      message.tags.append(newTag)
-                    }
-                    newTag = ""
-                  }
-                  showingTagInput = false
-                }
-                .disabled(newTag.isEmpty)
-              }
-            }
-            .padding()
-            .frame(width: 200)
-          }
-        #else
-          .sheet(isPresented: $showingTagInput) {
-            NavigationView {
-              VStack(spacing: 8) {
-                Text("Add Tag")
-                .font(.headline)
-
-                TextField("Tag name", text: $newTag)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
-
-                HStack {
-                  Button("Cancel") {
-                    showingTagInput = false
-                    newTag = ""
-                  }
-
-                  Button("Add") {
-                    if !newTag.isEmpty {
-                      favoriteMessageService.addTag(newTag, to: message.messageId)
-                      if !message.tags.contains(newTag) {
-                        message.tags.append(newTag)
-                      }
-                      newTag = ""
-                    }
-                    showingTagInput = false
-                  }
-                  .disabled(newTag.isEmpty)
-                }
-              }
-              .padding()
-              .navigationBarItems(
-                trailing: Button("Done") {
-                  showingTagInput = false
-                })
-            }
-          }
-        #endif
 
         Button(action: {
           withAnimation(AnimationConstants.quick) {

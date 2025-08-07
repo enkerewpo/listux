@@ -9,8 +9,6 @@ struct TaggedMessageRowView: View {
   let preference: Preference
   @Binding var selectedMessage: Message?
   @State private var isHovered: Bool = false
-  @State private var showingTagInput: Bool = false
-  @State private var newTag: String = ""
   @State private var favoriteMessageService = FavoriteMessageService.shared
   @Environment(\.modelContext) private var modelContext
 
@@ -75,45 +73,7 @@ struct TaggedMessageRowView: View {
               }
             }
 
-            Button(action: {
-              showingTagInput = true
-            }) {
-              Image(systemName: "plus.circle")
-                #if os(macOS)
-                  .font(.system(size: 14))
-                #else
-                  .font(.system(size: 16))
-                #endif
-                .foregroundColor(.blue)
-            }
-            .buttonStyle(.plain)
-            .popover(isPresented: $showingTagInput) {
-              VStack(spacing: 8) {
-                Text("Add Tag")
-                  .font(.headline)
-
-                TextField("Tag name", text: $newTag)
-                  .textFieldStyle(RoundedBorderTextFieldStyle())
-
-                HStack {
-                  Button("Cancel") {
-                    showingTagInput = false
-                    newTag = ""
-                  }
-
-                  Button("Add") {
-                    if !newTag.isEmpty {
-                      favoriteMessageService.addTag(newTag, to: message.messageId)
-                      newTag = ""
-                    }
-                    showingTagInput = false
-                  }
-                  .disabled(newTag.isEmpty)
-                }
-              }
-              .padding()
-              .frame(width: 200)
-            }
+            TagAddButton(messageId: message.messageId)
           }
 
           Button(action: {

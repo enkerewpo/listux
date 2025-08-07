@@ -117,6 +117,7 @@ struct MailingListMessageView: View {
   @State private var messages: [Message] = []
   @State private var nextURL: String?
   @State private var hasReachedEnd: Bool = false
+  @State private var selectedMessage: Message? = nil
   @Environment(\.modelContext) private var modelContext
   @Query private var preferences: [Preference]
 
@@ -131,16 +132,34 @@ struct MailingListMessageView: View {
   }
 
   var body: some View {
-    MessageListView(
-      messages: messages,
-      title: mailingList.name,
-      isLoading: isLoading,
-      onLoadMore: loadMoreMessages,
-      selectedMessage: .constant(nil)
-    )
-    .onAppear {
-      if messages.isEmpty {
-        loadMessages()
+    NavigationStack {
+      MessageListView(
+        messages: messages,
+        title: mailingList.name,
+        isLoading: isLoading,
+        onLoadMore: loadMoreMessages,
+        selectedMessage: $selectedMessage
+      )
+      .onAppear {
+        if messages.isEmpty {
+          loadMessages()
+        }
+      }
+    }
+    .sheet(item: $selectedMessage) { message in
+      NavigationStack {
+        MessageDetailView(selectedMessage: message)
+          .navigationTitle("Message Detail")
+          #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+              ToolbarItem(placement: .navigationBarTrailing) {
+                Button("Done") {
+                  selectedMessage = nil
+                }
+              }
+            }
+          #endif
       }
     }
   }

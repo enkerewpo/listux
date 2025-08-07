@@ -310,6 +310,7 @@ struct ContentView: View {
         }
         .tag(SidebarTab.settings)
       }
+      .animation(.none, value: selectedSidebarTab)
       .onAppear {
         favoriteMessageService.setModelContext(modelContext)
         favoriteMessageService.checkDataOnStartup()

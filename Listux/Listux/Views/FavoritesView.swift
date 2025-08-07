@@ -53,35 +53,54 @@ struct FavoritesMessageView: View {
   @State private var isLoading: Bool = false
   @State private var refreshTrigger: Bool = false
   @State private var forceRefresh: Bool = false
+  @State private var selectedMessage: Message? = nil
   let favoriteMessageService = FavoriteMessageService.shared
   @Environment(\.modelContext) private var modelContext
 
   var body: some View {
-    MessageListView(
-      messages: messages,
-      title: tag,
-      isLoading: isLoading,
-      onLoadMore: nil,
-      selectedMessage: .constant(nil)
-    )
-    .onAppear {
-      favoriteMessageService.setModelContext(modelContext)
-      favoriteMessageService.verifyPersistence()
-      loadMessages()
+    NavigationStack {
+      MessageListView(
+        messages: messages,
+        title: tag,
+        isLoading: isLoading,
+        onLoadMore: nil,
+        selectedMessage: $selectedMessage
+      )
+      .onAppear {
+        favoriteMessageService.setModelContext(modelContext)
+        favoriteMessageService.verifyPersistence()
+        loadMessages()
+      }
+      .task {
+        favoriteMessageService.setModelContext(modelContext)
+        favoriteMessageService.verifyPersistence()
+        loadMessages()
+      }
+      .onReceive(NotificationCenter.default.publisher(for: .dataCleared)) { _ in
+        refreshTrigger.toggle()
+        forceRefresh.toggle()
+        favoriteMessageService.setModelContext(modelContext)
+        favoriteMessageService.verifyPersistence()
+        loadMessages()
+      }
+      .id(forceRefresh)  // Force view refresh when data is cleared
     }
-    .task {
-      favoriteMessageService.setModelContext(modelContext)
-      favoriteMessageService.verifyPersistence()
-      loadMessages()
+    .sheet(item: $selectedMessage) { message in
+      NavigationStack {
+        MessageDetailView(selectedMessage: message)
+          .navigationTitle("Message Detail")
+          #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+              ToolbarItem(placement: .navigationBarTrailing) {
+                Button("Done") {
+                  selectedMessage = nil
+                }
+              }
+            }
+          #endif
+      }
     }
-    .onReceive(NotificationCenter.default.publisher(for: .dataCleared)) { _ in
-      refreshTrigger.toggle()
-      forceRefresh.toggle()
-      favoriteMessageService.setModelContext(modelContext)
-      favoriteMessageService.verifyPersistence()
-      loadMessages()
-    }
-    .id(forceRefresh)  // Force view refresh when data is cleared
   }
 
   private func loadMessages() {

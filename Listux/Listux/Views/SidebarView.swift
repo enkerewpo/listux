@@ -138,7 +138,6 @@ struct SidebarView: View {
               .transition(AnimationConstants.slideFromTrailing)
           }
         }
-        .animation(Animation.userPreference, value: selectedSidebarTab)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
       }
     }
