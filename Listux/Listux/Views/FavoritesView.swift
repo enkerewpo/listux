@@ -61,7 +61,8 @@ struct FavoritesMessageView: View {
       messages: messages,
       title: tag,
       isLoading: isLoading,
-      onLoadMore: nil
+      onLoadMore: nil,
+      selectedMessage: .constant(nil)
     )
     .onAppear {
       favoriteMessageService.setModelContext(modelContext)

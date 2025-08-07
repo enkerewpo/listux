@@ -135,7 +135,8 @@ struct MailingListMessageView: View {
       messages: messages,
       title: mailingList.name,
       isLoading: isLoading,
-      onLoadMore: loadMoreMessages
+      onLoadMore: loadMoreMessages,
+      selectedMessage: .constant(nil)
     )
     .onAppear {
       if messages.isEmpty {

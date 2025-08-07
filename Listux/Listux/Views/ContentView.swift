@@ -201,7 +201,8 @@ struct ContentView: View {
               messages: selectedList?.orderedMessages ?? [],
               title: selectedList?.name ?? "",
               isLoading: isLoadingMessages,
-              onLoadMore: nil
+              onLoadMore: nil,
+              selectedMessage: $selectedMessage
             )
             .frame(
               minWidth: 300,

@@ -14,6 +14,7 @@ struct MessageListView: View {
   let title: String
   let isLoading: Bool
   let onLoadMore: (() async -> Void)?
+  @Binding var selectedMessage: Message?
   @Environment(\.modelContext) private var modelContext
   @Query private var preferences: [Preference]
   @State private var favoriteMessageService = FavoriteMessageService.shared
@@ -55,8 +56,14 @@ struct MessageListView: View {
   private var messageListContent: some View {
     LazyVStack(spacing: 0) {
       ForEach(Array(sortedMessages.enumerated()), id: \.element.messageId) { index, message in
-        NavigationLink(destination: MessageDetailView(selectedMessage: message)) {
-          CompactMessageRowView(message: message, preference: preference)
+        Button(action: {
+          withAnimation(AnimationConstants.quick) {
+            selectedMessage = message
+          }
+        }) {
+          CompactMessageRowView(
+            message: message, preference: preference,
+            isSelected: selectedMessage?.messageId == message.messageId)
         }
         .buttonStyle(PlainButtonStyle())
         .background(
@@ -75,6 +82,8 @@ struct MessageListView: View {
         }
       }
     }
+    .padding(.leading, 8)
+    .padding(.trailing, 8)
   }
 
   var body: some View {
@@ -173,6 +182,7 @@ struct MessageListView: View {
 struct CompactMessageRowView: View {
   @ObservedObject var message: Message
   let preference: Preference
+  let isSelected: Bool
   @State private var showingTagInput: Bool = false
   @State private var newTag: String = ""
   @State private var favoriteMessageService = FavoriteMessageService.shared
@@ -191,6 +201,7 @@ struct CompactMessageRowView: View {
         .lineLimit(1)
         .truncationMode(.tail)
         .foregroundColor(.primary)
+        .opacity(isSelected ? 1.0 : 0.8)
 
       Spacer()
 
@@ -299,17 +310,21 @@ struct CompactMessageRowView: View {
     .background(
       RoundedRectangle(cornerRadius: 8)
         .fill(
-          isHovered
-            ? Color.accentColor.opacity(0.1)
-            : Color.clear
+          isSelected
+            ? Color.accentColor.opacity(0.2)
+            : (isHovered
+              ? Color.accentColor.opacity(0.1)
+              : Color.clear)
         )
         .overlay(
           RoundedRectangle(cornerRadius: 8)
             .stroke(
-              isHovered
-                ? Color.accentColor.opacity(0.3)
-                : Color.clear,
-              lineWidth: 1
+              isSelected
+                ? Color.accentColor.opacity(0.6)
+                : (isHovered
+                  ? Color.accentColor.opacity(0.3)
+                  : Color.clear),
+              lineWidth: isSelected ? 2 : 1
             )
         )
     )
