@@ -270,19 +270,19 @@ struct MessageDetailView: View {
                     case "Metadata":
                       MessageMetadataView(metadata: detail.metadata)
                     case "Content":
-                      if isPatchEmail {
-                        MessageContentView(
-                          content: detail.content,
-                          showFullContent: showFullContent,
-                          currentPage: currentPage
-                        )
-                      } else {
-                        EmailContentView(
-                          content: detail.content,
-                          showFullContent: showFullContent,
-                          currentPage: currentPage
-                        )
-                      }
+                      // if isPatchEmail {
+                      MessageContentView(
+                        content: detail.content,
+                        showFullContent: showFullContent,
+                        currentPage: currentPage
+                      )
+                    // } else {
+                    //   EmailContentView(
+                    //     content: detail.content,
+                    //     showFullContent: showFullContent,
+                    //     currentPage: currentPage
+                    //   )
+                    // }
                     default:
                       EmptyView()
                     }

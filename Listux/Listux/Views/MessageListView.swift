@@ -94,8 +94,8 @@ struct MessageListView: View {
           }
         }
 
-        // Load Next Page button - subtle and always show
-        if !messages.isEmpty {
+        // Load Next Page button - only show if not reached end
+        if !messages.isEmpty && !hasReachedEnd {
           Button(action: {
             print("MessageListView: Load Next Page button tapped")
             // Record the last message ID before loading
