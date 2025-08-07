@@ -158,12 +158,13 @@ class MessageDetailParser {
       var foundHeader = false
       var contentLines: [String] = []
       var inContent = false
+      var inGitDiff = false
 
       for pre in preElements {
         let text = (try? pre.text()) ?? ""
         let lines = text.components(separatedBy: .newlines)
 
-        for line in lines {
+        for (lineIndex, line) in lines.enumerated() {
           // Check performance limits
           if lineCount > maxContentLines {
             logger.warning("Stopping content parsing at \(lineCount) lines for performance")
@@ -186,15 +187,49 @@ class MessageDetailParser {
             continue
           }
 
-          // Skip diff headers and navigation
-          if trimmedLine.hasPrefix("diff --git") || trimmedLine.hasPrefix("index ")
-            || trimmedLine.hasPrefix("--- ") || trimmedLine.hasPrefix("+++ ")
-            || trimmedLine.hasPrefix("@@ ")
-          {
+          // Check for git diff start pattern: starts with "---" (includes summary)
+          if line.hasPrefix("---") && !inGitDiff {
+            // Look ahead to see if this is a git diff by checking for "diff --git" or "+++" in the next few lines
+            var foundGitDiff = false
+            for i in 1...5 {  // Check next 5 lines
+              if lineIndex + i < lines.count {
+                let nextLine = lines[lineIndex + i].trimmingCharacters(in: .whitespaces)
+                if nextLine.hasPrefix("diff --git") || nextLine.hasPrefix("+++") {
+                  foundGitDiff = true
+                  break
+                }
+              }
+            }
+
+            if foundGitDiff {
+              logger.info("Found git diff starting at line: \(line)")
+              inGitDiff = true
+              contentLines.append(line)
+              lineCount += 1
+              contentLength += line.count
+              continue
+            }
+          }
+
+          // Check for git diff end pattern
+          if inGitDiff && trimmedLine == "--" {
+            logger.info("Found git diff ending at line: \(line)")
+            contentLines.append(line)
+            lineCount += 1
+            contentLength += line.count
+            inGitDiff = false
             continue
           }
 
-          // Skip thread navigation and other metadata
+          // If we're in a git diff, include all lines
+          if inGitDiff {
+            contentLines.append(line)
+            lineCount += 1
+            contentLength += line.count
+            continue
+          }
+
+          // Skip thread navigation and other metadata (but not git diff content)
           if trimmedLine.contains("siblings") || trimmedLine.contains("replies")
             || trimmedLine.contains("permalink") || trimmedLine.contains("raw")
             || trimmedLine.contains("Thread overview")
