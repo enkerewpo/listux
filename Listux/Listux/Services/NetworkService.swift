@@ -10,60 +10,46 @@ class NetworkService {
   private init() {}
 
   func fetchHomePage() async throws -> String {
-    logger.info("Fetching main page from lore.kernel.org")
-    LogManager.shared.info("Fetching main page from lore.kernel.org")
+    LogManager.shared.info("Fetching main page from \(baseURL)")
     let url = URL(string: baseURL)!
     let (data, response) = try await URLSession.shared.data(from: url)
     if let httpResponse = response as? HTTPURLResponse {
-      logger.info("Main page response status: \(httpResponse.statusCode)")
       LogManager.shared.info("Main page response status: \(httpResponse.statusCode)")
     }
     let html = String(data: data, encoding: .utf8) ?? ""
-    logger.info("Main page content length: \(html.count) characters")
     LogManager.shared.info("Main page content length: \(html.count) characters")
-    // logger.debug("Main page content (first 500 chars):\n\(String(html.prefix(500)))")
     return html
   }
 
   func fetchListPage(_ listName: String) async throws -> String {
-    logger.info("Fetching mailing list: \(listName)")
     LogManager.shared.info("Fetching mailing list: \(listName)")
     let url = URL(string: "\(baseURL)/\(listName)")!
     let (data, response) = try await URLSession.shared.data(from: url)
     if let httpResponse = response as? HTTPURLResponse {
-      logger.info("Mailing list response status: \(httpResponse.statusCode)")
       LogManager.shared.info("Mailing list response status: \(httpResponse.statusCode)")
     }
     let html = String(data: data, encoding: .utf8) ?? ""
-    logger.info("Mailing list content length: \(html.count) characters")
     LogManager.shared.info("Mailing list content length: \(html.count) characters")
-    // logger.debug("Mailing list content (first 500 chars):\n\(String(html.prefix(500)))")
     return html
   }
 
   func fetchMessage(_ messageId: String) async throws -> String {
-    logger.info("Fetching message: \(messageId)")
-    LogManager.shared.info("Fetching message: \(messageId)")
+    LogManager.shared.info("Fetching message: \(messageId) from \(baseURL)")
     let url = URL(string: "\(baseURL)/\(messageId)")!
     let (data, response) = try await URLSession.shared.data(from: url)
     if let httpResponse = response as? HTTPURLResponse {
-      logger.info("Message response status: \(httpResponse.statusCode)")
-      LogManager.shared.info("Message response status: \(httpResponse.statusCode)")
+      LogManager.shared.info("Message response status: \(httpResponse.statusCode) for \(messageId)")
     }
     let html = String(data: data, encoding: .utf8) ?? ""
-    logger.info("Message content length: \(html.count) characters")
-    LogManager.shared.info("Message content length: \(html.count) characters")
-    // logger.debug("Message content (first 500 chars):\n\(String(html.prefix(500)))")
+    LogManager.shared.info("Message content length: \(html.count) characters for \(messageId)")
     return html
   }
 
   /// Fetch raw HTML from an arbitrary URL string, please make sure this is a message page
   func fetchMessageRaw(url: String) async throws -> String {
-    logger.info("Fetching raw message from URL: \(url)")
     LogManager.shared.info("Fetching raw message from URL: \(url)")
 
     guard let u = URL(string: url) else {
-      logger.error("Invalid URL: \(url)")
       LogManager.shared.error("Invalid URL: \(url)")
       throw URLError(.badURL)
     }
@@ -72,33 +58,27 @@ class NetworkService {
       let (data, response) = try await URLSession.shared.data(from: u)
 
       if let httpResponse = response as? HTTPURLResponse {
-        logger.info("Raw fetch response status: \(httpResponse.statusCode)")
         LogManager.shared.info("Raw fetch response status: \(httpResponse.statusCode)")
 
         if httpResponse.statusCode != 200 {
-          logger.error("HTTP error: \(httpResponse.statusCode)")
           LogManager.shared.error("HTTP error: \(httpResponse.statusCode)")
           throw URLError(.badServerResponse)
         }
       }
 
       guard let html = String(data: data, encoding: .utf8) else {
-        logger.error("Failed to decode HTML content")
         LogManager.shared.error("Failed to decode HTML content")
         throw URLError(.cannotDecodeContentData)
       }
 
-      logger.info("Raw fetch content length: \(html.count) characters")
       LogManager.shared.info("Raw fetch content length: \(html.count) characters")
 
       if html.isEmpty {
-        logger.warning("Received empty HTML content")
         LogManager.shared.info("Received empty HTML content")
       }
 
       return html
     } catch {
-      logger.error("Network request failed: \(error.localizedDescription)")
       LogManager.shared.error("Network request failed: \(error.localizedDescription)")
       throw error
     }
@@ -106,11 +86,9 @@ class NetworkService {
 
   /// Fetch raw HTML from an arbitrary URL string
   func fetchURL(_ urlString: String) async throws -> String {
-    logger.info("Fetching content from URL: \(urlString)")
     LogManager.shared.info("Fetching content from URL: \(urlString)")
 
     guard let url = URL(string: urlString) else {
-      logger.error("Invalid URL: \(urlString)")
       LogManager.shared.error("Invalid URL: \(urlString)")
       throw URLError(.badURL)
     }
@@ -119,33 +97,27 @@ class NetworkService {
       let (data, response) = try await URLSession.shared.data(from: url)
 
       if let httpResponse = response as? HTTPURLResponse {
-        logger.info("URL fetch response status: \(httpResponse.statusCode)")
         LogManager.shared.info("URL fetch response status: \(httpResponse.statusCode)")
 
         if httpResponse.statusCode != 200 {
-          logger.error("HTTP error: \(httpResponse.statusCode)")
           LogManager.shared.error("HTTP error: \(httpResponse.statusCode)")
           throw URLError(.badServerResponse)
         }
       }
 
       guard let html = String(data: data, encoding: .utf8) else {
-        logger.error("Failed to decode HTML content")
         LogManager.shared.error("Failed to decode HTML content")
         throw URLError(.cannotDecodeContentData)
       }
 
-      logger.info("URL fetch content length: \(html.count) characters")
       LogManager.shared.info("URL fetch content length: \(html.count) characters")
 
       if html.isEmpty {
-        logger.warning("Received empty HTML content")
         LogManager.shared.info("Received empty HTML content")
       }
 
       return html
     } catch {
-      logger.error("Network request failed: \(error.localizedDescription)")
       LogManager.shared.error("Network request failed: \(error.localizedDescription)")
       throw error
     }

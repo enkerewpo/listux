@@ -48,7 +48,7 @@ class Parser {
   static func parseMsgsFromListPage(from html: String, mailingList: MailingList)
     -> MessagePageResult
   {
-    logger.debug("Parsing messages at list \(mailingList.name)")
+    LogManager.shared.info("Parsing messages at list \(mailingList.name)")
     var rootMessages: [Message] = []
     var messageMap: [String: Message] = [:]
     var orderedMessages: [Message] = []
@@ -70,7 +70,7 @@ class Parser {
 
         // Skip if we've already seen this URL
         if seenUrls.contains(url) {
-          logger.debug("Skipping duplicate URL: \(url)")
+          LogManager.shared.info("Skipping duplicate URL: \(url)")
           continue
         }
         seenUrls.insert(url)
@@ -83,20 +83,28 @@ class Parser {
         var timestamp: Date
         if let urlTimestamp = extractTimestampFromURL(url) {
           timestamp = urlTimestamp
-          logger.debug("Extracted timestamp from URL: \(timestamp)")
+          LogManager.shared.info("Extracted timestamp from URL: \(timestamp)")
         } else {
           // Fallback to parsing the date text from the page
           let dateFormatter = DateFormatter()
           dateFormatter.dateFormat = "yyyy-MM-dd HH:mm"
           dateFormatter.timeZone = TimeZone(abbreviation: "UTC")
           timestamp = dateFormatter.date(from: dateText) ?? Date()
-          logger.debug("Parsed timestamp from text: \(timestamp)")
+          LogManager.shared.info("Parsed timestamp from text: \(timestamp)")
         }
 
-        let fullUrl =
+        var fullUrl =
           LORE_LINUX_BASE_URL.value + "/" + mailingList.name + "/"
           + url.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        logger.debug("Constructing messageId: \(fullUrl)")
+
+        // fullUrl maybe end with /T/#u or /T/#t, remove the last /T/#u or /T/#t because we just want to render one mail now :) - wheatfox
+        if fullUrl.hasSuffix("/T/#u") {
+          fullUrl = String(fullUrl.dropLast(5))
+        } else if fullUrl.hasSuffix("/T/#t") {
+          fullUrl = String(fullUrl.dropLast(5))
+        }
+
+        LogManager.shared.info("Constructing messageId: \(fullUrl)")
 
         // Check if message already exists in the mailing list
         let existingMessage = mailingList.messages.first { $0.messageId == fullUrl }
@@ -108,7 +116,7 @@ class Parser {
           message.subject = subject
           message.timestamp = timestamp
           message.seqId = seqId
-          logger.debug("Using existing message: \(fullUrl)")
+          LogManager.shared.info("Using existing message: \(fullUrl)")
         } else {
           // Create new message
           message = Message(
@@ -120,7 +128,7 @@ class Parser {
           )
           // Set mailingList reference for new messages
           message.mailingList = mailingList
-          logger.debug("Created new message: \(fullUrl)")
+          LogManager.shared.info("Created new message: \(fullUrl)")
         }
 
         seqId += 1
@@ -129,23 +137,12 @@ class Parser {
         messageMap[messageId] = message
         orderedMessages.append(message)
 
-        // write html_plain to file
-        let fileManager = FileManager.default
-        let currentDirectory = fileManager.currentDirectoryPath
-        let filePath = currentDirectory + "/html_plain.html"
-        do {
-          logger.info("writing html_plain to file: \(filePath)")
-          try html.write(toFile: filePath, atomically: true, encoding: .utf8)
-        } catch {
-          logger.error("Error writing html_plain to file: \(error.localizedDescription)")
-        }
-
         if let range = html.range(of: url) {
           let startIndex = range.lowerBound
           if startIndex >= html.index(html.startIndex, offsetBy: 20) {
             let beforeIndex = html.index(startIndex, offsetBy: -20)
             let prefix = html[beforeIndex..<startIndex]
-            logger.info("before=\(prefix)")
+            LogManager.shared.info("before=\(prefix)")
             if prefix.contains("` ") {
               message.parent = lastRootMessage
               lastRootMessage?.replies.append(message)
@@ -154,9 +151,9 @@ class Parser {
               lastRootMessage = message
             }
           } else {
-            logger.info("before is not enough, trying to find from beginning")
+            LogManager.shared.info("before is not enough, trying to find from beginning")
             let prefix = html[..<startIndex]
-            logger.info("prefix=\(prefix)")
+            LogManager.shared.info("prefix=\(prefix)")
             if prefix.contains("` ") {
               message.parent = lastRootMessage
               lastRootMessage?.replies.append(message)
@@ -166,10 +163,10 @@ class Parser {
             }
           }
         } else {
-          logger.error("not found in original html, this should not happen")
+          LogManager.shared.error("not found in original html, this should not happen")
         }
         // dump message
-        logger.info("message=\(String(describing: message))")
+        LogManager.shared.info("message=\(String(describing: message))")
       }
 
       // Parse pagination links: "next (older)", "prev (newer)", and "latest" if they exist
@@ -186,17 +183,18 @@ class Parser {
         }
       }
     } catch {
-      logger.error("Error parsing HTML: \(error.localizedDescription)")
+      LogManager.shared.error("Error parsing HTML: \(error.localizedDescription)")
     }
 
-    logger.debug("Parsed \(rootMessages.count) root messages for list \(mailingList.name)")
+    LogManager.shared.info(
+      "Parsed \(rootMessages.count) root messages for list \(mailingList.name)")
     return MessagePageResult(
       messages: orderedMessages, nextURL: nextURL, prevURL: prevURL, latestURL: latestURL)
   }
 
   /// Parse the mailing list home page and return a list of (name, desc) tuples.
   static func parseListsFromHomePage(from html: String) -> [(name: String, desc: String)] {
-    logger.info("Starting to parse mailing lists from HTML")
+    LogManager.shared.info("Starting to parse mailing lists from HTML")
     var lists: [(name: String, desc: String)] = []
     do {
       let doc = try SwiftSoup.parse(html)
@@ -221,9 +219,9 @@ class Parser {
         }
       }
       lists.sort { $0.name < $1.name }
-      logger.info("Finished parsing mailing lists. Found \(lists.count) lists")
+      LogManager.shared.info("Finished parsing mailing lists. Found \(lists.count) lists")
     } catch {
-      logger.error("Error parsing HTML: \(error.localizedDescription)")
+      LogManager.shared.error("Error parsing HTML: \(error.localizedDescription)")
     }
     return lists
   }

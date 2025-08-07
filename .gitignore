@@ -71,3 +71,6 @@ fastlane/test_output
 
 .vscode
 buildServer.json
+
+# ln -s "/Users/wheatfox/Library/Containers/wheatfox.Listux/Data/Library/Application Support/Listux/Logs" .
+Logs
