@@ -22,7 +22,6 @@ class WindowLayoutManager {
 
       return (targetWidth, targetHeight)
     #else
-      // iOS: Return default size for iPad or iPhone
       return (1200, 800)
     #endif
   }
@@ -37,7 +36,6 @@ class WindowLayoutManager {
     let availableWidth = windowWidth - minSidebarWidth - minMessageListWidth - minDetailWidth
 
     if availableWidth >= 0 {
-      // 有足够空间，平均分配
       let extraPerColumn = availableWidth / 3
       let sidebarWidth = minSidebarWidth + extraPerColumn
       let messageListWidth = minMessageListWidth + extraPerColumn
@@ -45,7 +43,6 @@ class WindowLayoutManager {
 
       return (sidebarWidth, messageListWidth, detailWidth)
     } else {
-      // 空间不足，使用最小宽度
       return (minSidebarWidth, minMessageListWidth, minDetailWidth)
     }
   }
@@ -61,7 +58,6 @@ class WindowLayoutManager {
     let messageListWidth = UserDefaults.standard.double(forKey: "messageListWidth")
     let detailWidth = UserDefaults.standard.double(forKey: "detailWidth")
 
-    // 如果从未保存过，返回默认值
     if sidebarWidth == 0 {
       return calculateOptimalLayout(for: 1200)
     }

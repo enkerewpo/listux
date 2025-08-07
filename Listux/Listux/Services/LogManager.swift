@@ -1,6 +1,9 @@
-import AppKit
 import Foundation
 import os.log
+
+#if os(macOS)
+  import AppKit
+#endif
 
 class LogManager: ObservableObject {
   static let shared = LogManager()
@@ -91,7 +94,7 @@ class LogManager: ObservableObject {
 
   func log(_ message: String, level: OSLogType = .default) {
     let timestamp = DateFormatter.logTimestamp.string(from: Date())
-    let logEntry = "[\(timestamp)] \(message)\n"
+    let logEntry = "[\(timestamp)| \(level.rawValue)] \(message)\n"
 
     do {
       if !fileManager.fileExists(atPath: currentLogFile.path) {
@@ -137,7 +140,9 @@ class LogManager: ObservableObject {
   }
 
   func openLogDirectory() {
-    NSWorkspace.shared.open(logDirectory)
+    #if os(macOS)
+      NSWorkspace.shared.open(logDirectory)
+    #endif
   }
 }
 

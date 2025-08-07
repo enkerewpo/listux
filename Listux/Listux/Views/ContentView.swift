@@ -255,7 +255,6 @@ struct ContentView: View {
       }
       #if os(macOS)
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResizeNotification)) { _ in
-          // 当窗口大小改变时，保存当前的布局偏好
           if let window = NSApplication.shared.windows.first {
             let windowWidth = window.frame.width
             let layout = windowLayoutManager.calculateOptimalLayout(for: windowWidth)
