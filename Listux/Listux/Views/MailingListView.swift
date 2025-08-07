@@ -112,7 +112,10 @@ struct MailingListView: View {
 struct MailingListMessageView: View {
   let mailingList: MailingList
   @State private var isLoading: Bool = false
+  @State private var isLoadingMore: Bool = false
   @State private var messages: [Message] = []
+  @State private var nextURL: String?
+  @State private var hasReachedEnd: Bool = false
   @Environment(\.modelContext) private var modelContext
   @Query private var preferences: [Preference]
 
@@ -130,7 +133,8 @@ struct MailingListMessageView: View {
     MessageListView(
       messages: messages,
       title: mailingList.name,
-      isLoading: isLoading
+      isLoading: isLoading,
+      onLoadMore: loadMoreMessages
     )
     .onAppear {
       loadMessages()
@@ -145,6 +149,7 @@ struct MailingListMessageView: View {
         let result = Parser.parseMsgsFromListPage(from: html, mailingList: mailingList)
         await MainActor.run {
           messages = result.messages
+          nextURL = result.nextURL
           isLoading = false
         }
       } catch {
@@ -152,6 +157,27 @@ struct MailingListMessageView: View {
           isLoading = false
         }
       }
+    }
+  }
+  
+  private func loadMoreMessages() async {
+    guard let nextURL = nextURL, !hasReachedEnd else {
+      return
+    }
+    
+    do {
+      let html = try await NetworkService.shared.fetchURL(nextURL)
+      let result = Parser.parseMsgsFromListPage(from: html, mailingList: mailingList)
+      
+      await MainActor.run {
+        messages.append(contentsOf: result.messages)
+        self.nextURL = result.nextURL
+        if result.nextURL == nil {
+          hasReachedEnd = true
+        }
+      }
+    } catch {
+      print("Failed to load more messages: \(error)")
     }
   }
 }
@@ -165,55 +191,55 @@ struct MailingListItemView: View {
   @State private var isHovered: Bool = false
 
   var body: some View {
-    HStack(spacing: 8) {
-      // Pin indicator
-      if isPinned {
-        Image(systemName: "pin.fill")
-          .font(.system(size: 10))
-          .foregroundColor(.orange)
-      }
+    Button(action: onSelect) {
+      HStack(spacing: 8) {
+        // Pin indicator
+        if isPinned {
+          Image(systemName: "pin.fill")
+            .font(.system(size: 10))
+            .foregroundColor(.orange)
+        }
 
-      VStack(alignment: .leading, spacing: 2) {
-        Text(list.name)
-          .font(.system(size: 13, weight: .medium))
-          .lineLimit(1)
-        Text(list.desc)
-          .font(.system(size: 11))
-          .foregroundColor(.secondary)
-          .lineLimit(1)
-      }
+        VStack(alignment: .leading, spacing: 2) {
+          Text(list.name)
+            .font(.system(size: 13, weight: .medium))
+            .lineLimit(1)
+          Text(list.desc)
+            .font(.system(size: 11))
+            .foregroundColor(.secondary)
+            .lineLimit(1)
+        }
 
-      Spacer()
+        Spacer()
 
-      // Pin toggle button
-      Button(action: onPinToggle) {
-        Image(systemName: isPinned ? "pin.fill" : "pin")
-          .font(.system(size: 11))
-          .foregroundColor(isPinned ? .orange : .secondary)
-          .scaleEffect(isPinned ? AnimationConstants.favoriteScale : 1.0)
+        // Pin toggle button
+        Button(action: onPinToggle) {
+          Image(systemName: isPinned ? "pin.fill" : "pin")
+            .font(.system(size: 11))
+            .foregroundColor(isPinned ? .orange : .secondary)
+            .scaleEffect(isPinned ? AnimationConstants.favoriteScale : 1.0)
+        }
+        .buttonStyle(.plain)
+        .animation(AnimationConstants.springQuick, value: isPinned)
       }
-      .buttonStyle(.plain)
-      .animation(AnimationConstants.springQuick, value: isPinned)
+      .padding(.horizontal, 12)
+      .padding(.vertical, 6)
+      .background(
+        RoundedRectangle(cornerRadius: 6)
+          .fill(
+            isSelected
+              ? Color.accentColor.opacity(0.15)
+              : (isHovered ? Color.primary.opacity(0.08) : Color.clear)
+          )
+          .overlay(
+            RoundedRectangle(cornerRadius: 6)
+              .stroke(isSelected ? Color.accentColor.opacity(0.3) : Color.clear, lineWidth: 1)
+          )
+      )
     }
-    .padding(.horizontal, 12)
-    .padding(.vertical, 6)
-    .background(
-      RoundedRectangle(cornerRadius: 6)
-        .fill(
-          isSelected
-            ? Color.accentColor.opacity(0.15)
-            : (isHovered ? Color.primary.opacity(0.08) : Color.clear)
-        )
-        .overlay(
-          RoundedRectangle(cornerRadius: 6)
-            .stroke(isSelected ? Color.accentColor.opacity(0.3) : Color.clear, lineWidth: 1)
-        )
-    )
-    .onTapGesture(perform: onSelect)
+    .buttonStyle(.plain)
     .onHover { hovering in
-      withAnimation(Animation.userPreferenceQuick) {
-        isHovered = hovering
-      }
+      isHovered = hovering
     }
     .animation(Animation.userPreferenceQuick, value: isSelected)
     .animation(Animation.userPreferenceQuick, value: isHovered)

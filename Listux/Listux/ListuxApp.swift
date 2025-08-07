@@ -30,6 +30,11 @@ struct ListuxApp: App {
     }
     .modelContainer(sharedModelContainer)
     #if os(macOS)
+      .defaultSize(
+        width: WindowLayoutManager.shared.calculateInitialWindowSize().width,
+        height: WindowLayoutManager.shared.calculateInitialWindowSize().height
+      )
+      .windowResizability(.contentSize)
       .commands {
         CommandGroup(replacing: .appInfo) {
           Button("About Listux") {

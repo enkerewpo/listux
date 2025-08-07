@@ -8,6 +8,11 @@ final class Preference {
   var favoriteLists: [String] = []  // Store list names instead of objects
   var pinnedLists: [String] = []    // Store list names instead of objects
   var lastViewedList: String?       // Store list name instead of object
+  
+  // Window layout preferences
+  var sidebarWidth: Double = 320
+  var messageListWidth: Double = 500
+  var detailViewWidth: Double = 500
 
   init() {}
 

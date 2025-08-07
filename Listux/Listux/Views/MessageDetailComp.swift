@@ -5,11 +5,6 @@ struct MessageMetadataView: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
-      // Subject
-      Text(metadata.subject)
-        .font(.title2)
-        .bold()
-        .multilineTextAlignment(.leading)
 
       // Author and Date
       HStack {

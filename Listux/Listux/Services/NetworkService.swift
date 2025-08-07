@@ -86,4 +86,43 @@ class NetworkService {
       throw error
     }
   }
+  
+  /// Fetch raw HTML from an arbitrary URL string
+  func fetchURL(_ urlString: String) async throws -> String {
+    logger.info("Fetching content from URL: \(urlString)")
+
+    guard let url = URL(string: urlString) else {
+      logger.error("Invalid URL: \(urlString)")
+      throw URLError(.badURL)
+    }
+
+    do {
+      let (data, response) = try await URLSession.shared.data(from: url)
+
+      if let httpResponse = response as? HTTPURLResponse {
+        logger.info("URL fetch response status: \(httpResponse.statusCode)")
+
+        if httpResponse.statusCode != 200 {
+          logger.error("HTTP error: \(httpResponse.statusCode)")
+          throw URLError(.badServerResponse)
+        }
+      }
+
+      guard let html = String(data: data, encoding: .utf8) else {
+        logger.error("Failed to decode HTML content")
+        throw URLError(.cannotDecodeContentData)
+      }
+
+      logger.info("URL fetch content length: \(html.count) characters")
+
+      if html.isEmpty {
+        logger.warning("Received empty HTML content")
+      }
+
+      return html
+    } catch {
+      logger.error("Network request failed: \(error.localizedDescription)")
+      throw error
+    }
+  }
 }

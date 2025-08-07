@@ -26,36 +26,32 @@ private struct SidebarTabButton: View {
   @State private var isHovered: Bool = false
 
   var body: some View {
-    Button(action: action) {
-      HStack(spacing: 8) {
-        Image(systemName: tab.systemImage)
-          .font(.system(size: 14, weight: .medium))
-          .foregroundColor(isSelected ? .accentColor : .secondary)
-        Text(tab.label)
-          .font(.system(size: 13, weight: .medium))
-          .foregroundColor(isSelected ? .primary : .secondary)
-      }
-      .padding(.horizontal, 12)
-      .padding(.vertical, 8)
-      .frame(maxWidth: .infinity, alignment: .leading)
-      .background(
-        RoundedRectangle(cornerRadius: 8)
-          .fill(isSelected ? Color.accentColor.opacity(0.15) : Color.clear)
-          .overlay(
-            RoundedRectangle(cornerRadius: 8)
-              .stroke(isSelected ? Color.accentColor.opacity(0.3) : Color.clear, lineWidth: 1)
-          )
-      )
-      .scaleEffect(isHovered && !isSelected ? 1.02 : 1.0)
+    HStack(spacing: 8) {
+      Image(systemName: tab.systemImage)
+        .font(.system(size: 14, weight: .medium))
+        .foregroundColor(isSelected ? .accentColor : .secondary)
+      Text(tab.label)
+        .font(.system(size: 13, weight: .medium))
+        .foregroundColor(isSelected ? .primary : .secondary)
+      Spacer()
     }
-    .buttonStyle(.plain)
+    .padding(.horizontal, 12)
+    .padding(.vertical, 8)
+    .frame(maxWidth: .infinity)
+    .background(
+      RoundedRectangle(cornerRadius: 8)
+        .fill(isSelected ? Color.accentColor.opacity(0.15) : Color.clear)
+        .overlay(
+          RoundedRectangle(cornerRadius: 8)
+            .stroke(isSelected ? Color.accentColor.opacity(0.3) : Color.clear, lineWidth: 1)
+        )
+    )
+    .scaleEffect(isHovered && !isSelected ? 1.01 : 1.0)
+    .contentShape(Rectangle())
+    .onTapGesture(perform: action)
     .onHover { hovering in
-      withAnimation(Animation.userPreferenceQuick) {
-        isHovered = hovering
-      }
+      isHovered = hovering
     }
-    .animation(Animation.userPreferenceQuick, value: isHovered)
-    .animation(Animation.userPreferenceQuick, value: isSelected)
   }
 }
 
@@ -113,12 +109,10 @@ struct SidebarView: View {
       VStack(spacing: 4) {
         ForEach(SidebarTab.allCases, id: \.self) { tab in
           SidebarTabButton(tab: tab, isSelected: selectedSidebarTab == tab) {
-            withAnimation(Animation.userPreference) {
-              selectedSidebarTab = tab
-              if tab == .favorites {
-                selectedTag = nil
-                onSelectTag?(nil)
-              }
+            selectedSidebarTab = tab
+            if tab == .favorites {
+              selectedTag = nil
+              onSelectTag?(nil)
             }
           }
         }
@@ -201,15 +195,11 @@ struct SidebarView: View {
               isSelected: selectedList == list,
               isPinned: list.isPinned,
               onSelect: {
-                withAnimation(Animation.userPreferenceQuick) {
-                  selectedList = list
-                }
+                selectedList = list
                 onSelectList?(list)
               },
               onPinToggle: {
-                withAnimation(Animation.userPreferenceQuick) {
-                  preference.togglePinned(list)
-                }
+                preference.togglePinned(list)
               }
             )
           }
@@ -238,18 +228,29 @@ struct SidebarView: View {
       } else {
         List(selection: $selectedTag) {
           ForEach(allTags, id: \.self) { tag in
-            TagItemView(
-              tag: tag,
-              isSelected: selectedTag == tag,
-              messageCount: tag == "Untagged"
-                ? favoriteMessageService.getUntaggedMessages().count : favoriteMessageService.getMessagesWithTag(tag).count,
-              onSelect: {
-                withAnimation(Animation.userPreferenceQuick) {
-                  selectedTag = tag
-                  onSelectTag?(tag)
-                }
+            HStack(spacing: 8) {
+              Image(systemName: tag == "Untagged" ? "tag.slash" : "tag")
+                .font(.system(size: 12))
+                .foregroundColor(tag == "Untagged" ? .secondary : .blue)
+
+              VStack(alignment: .leading, spacing: 2) {
+                Text(tag)
+                  .font(.system(size: 13, weight: .medium))
+                  .lineLimit(1)
+                Text("\(getMessageCount(for: tag)) message\(getMessageCount(for: tag) == 1 ? "" : "s")")
+                  .font(.system(size: 11))
+                  .foregroundColor(.secondary)
+                  .lineLimit(1)
               }
-            )
+
+              Spacer()
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .onTapGesture {
+              selectedTag = tag
+              onSelectTag?(tag)
+            }
           }
         }
         .listStyle(listStyle)
@@ -267,6 +268,14 @@ struct SidebarView: View {
     #endif
   }
 
+  private func getMessageCount(for tag: String) -> Int {
+    if tag == "Untagged" {
+      return favoriteMessageService.getUntaggedMessages().count
+    } else {
+      return favoriteMessageService.getMessagesWithTag(tag).count
+    }
+  }
+  
   private var listStyle: some ListStyle {
     #if os(macOS)
       .sidebar

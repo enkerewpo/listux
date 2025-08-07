@@ -31,6 +31,7 @@ struct ContentView: View {
 
   @State private var settingsManager = SettingsManager.shared
   @State private var favoriteMessageService = FavoriteMessageService.shared
+  @State private var windowLayoutManager = WindowLayoutManager.shared
 
   private var preference: Preference {
     if let existing = preferences.first {
@@ -172,7 +173,11 @@ struct ContentView: View {
             selectedMessage = nil
           }
         )
-        .frame(minWidth: 240, idealWidth: 380, maxWidth: .infinity)
+        .frame(
+          minWidth: 240,
+          idealWidth: WindowLayoutManager.shared.loadLayoutPreferences().sidebar,
+          maxWidth: .infinity
+        )
       } content: {
         VStack(spacing: 0) {
           if selectedSidebarTab == .favorites {
@@ -193,28 +198,33 @@ struct ContentView: View {
             MessageListView(
               messages: selectedList?.orderedMessages ?? [],
               title: selectedList?.name ?? "",
-              isLoading: isLoadingMessages
+              isLoading: isLoadingMessages,
+              onLoadMore: nil
             )
-            .frame(minWidth: 300, idealWidth: 700, maxWidth: .infinity, maxHeight: .infinity)
+            .frame(
+              minWidth: 300,
+              idealWidth: WindowLayoutManager.shared.loadLayoutPreferences().messageList,
+              maxWidth: .infinity,
+              maxHeight: .infinity
+            )
           }
         }
-        .animation(Animation.userPreference, value: selectedSidebarTab)
-        .animation(Animation.userPreference, value: selectedTag)
+
       } detail: {
         MessageDetailView(selectedMessage: selectedMessage)
-          .frame(minWidth: 400, idealWidth: 600, maxWidth: .infinity)
+          .frame(
+            minWidth: 400,
+            idealWidth: WindowLayoutManager.shared.loadLayoutPreferences().detail,
+            maxWidth: .infinity
+          )
       }
       .onChange(of: selectedList) {
-        withAnimation(Animation.userPreference) {
-          selectedMessage = nil
-          messagePageLinks = (nil, nil, nil)
-          currentPage = 1
-        }
+        selectedMessage = nil
+        messagePageLinks = (nil, nil, nil)
+        currentPage = 1
       }
       .onChange(of: selectedTag) {
-        withAnimation(Animation.userPreference) {
-          selectedMessage = nil
-        }
+        selectedMessage = nil
       }
       .onChange(of: settingsManager.shouldOpenSettings) { _, newValue in
         if newValue {
@@ -240,6 +250,20 @@ struct ContentView: View {
       .task {
         loadMailingLists()
       }
+      #if os(macOS)
+      .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResizeNotification)) { _ in
+        // 当窗口大小改变时，保存当前的布局偏好
+        if let window = NSApplication.shared.windows.first {
+          let windowWidth = window.frame.width
+          let layout = windowLayoutManager.calculateOptimalLayout(for: windowWidth)
+          windowLayoutManager.saveLayoutPreferences(
+            sidebarWidth: layout.sidebar,
+            messageListWidth: layout.messageList,
+            detailWidth: layout.detail
+          )
+        }
+      }
+      #endif
     }
   #endif
 

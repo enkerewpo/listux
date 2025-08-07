@@ -5,13 +5,22 @@ import SwiftUI
   import UIKit
 #endif
 
+#if os(macOS)
+  import AppKit
+#endif
+
 struct MessageListView: View {
   let messages: [Message]
   let title: String
   let isLoading: Bool
+  let onLoadMore: (() async -> Void)?
   @Environment(\.modelContext) private var modelContext
   @Query private var preferences: [Preference]
   @State private var favoriteMessageService = FavoriteMessageService.shared
+  @State private var isLoadingMore: Bool = false
+  @State private var hasReachedEnd: Bool = false
+  @State private var scrollViewHeight: CGFloat = 0
+  @State private var contentHeight: CGFloat = 0
 
   private var preference: Preference {
     if let existing = preferences.first {
@@ -32,22 +41,92 @@ struct MessageListView: View {
     }
     return sorted
   }
-
-  var body: some View {
-    let _ = print("MessageListView body recalculated for '\(title)' with \(messages.count) messages")
-    return List(sortedMessages, id: \.messageId) { message in
-      NavigationLink(destination: MessageDetailView(selectedMessage: message)) {
-        SimpleMessageRowView(message: message, preference: preference)
-      }
+  
+  private func alternatingRowColor(for index: Int) -> Color {
+    if index % 2 == 0 {
+      return Color.clear
+    } else {
+      return Color.gray.opacity(0.15)
     }
-    .navigationTitle(title)
-    .overlay(
-      Group {
-        if isLoading {
-          ProgressView("Loading...")
+  }
+
+  private var messageListContent: some View {
+    LazyVStack(spacing: 0) {
+      ForEach(Array(sortedMessages.enumerated()), id: \.element.messageId) { index, message in
+        NavigationLink(destination: MessageDetailView(selectedMessage: message)) {
+          CompactMessageRowView(message: message, preference: preference)
+        }
+        .buttonStyle(PlainButtonStyle())
+        .background(
+          Rectangle()
+            .fill(alternatingRowColor(for: index))
+            .opacity(0.3)
+        )
+      }
+      
+      if isLoadingMore {
+        HStack {
+          Spacer()
+          ProgressView("Loading more...")
+            .padding()
+          Spacer()
         }
       }
-    )
+    }
+  }
+  
+  private var contentGeometryReader: some View {
+    GeometryReader { geometry in
+      Color.clear
+        .onAppear {
+          contentHeight = geometry.size.height
+        }
+        .onChange(of: geometry.size.height) { _, newHeight in
+          contentHeight = newHeight
+        }
+    }
+  }
+  
+  private var scrollViewGeometryReader: some View {
+    GeometryReader { geometry in
+      Color.clear
+        .onAppear {
+          scrollViewHeight = geometry.size.height
+        }
+        .onChange(of: geometry.size.height) { _, newHeight in
+          scrollViewHeight = newHeight
+        }
+    }
+  }
+  
+  private var loadingOverlay: some View {
+    Group {
+      if isLoading && messages.isEmpty {
+        ProgressView("Loading...")
+      }
+    }
+  }
+  
+  var body: some View {
+    let sortedMessages = self.sortedMessages
+    let messageCount = messages.count
+    let title = self.title
+    
+    print("MessageListView body recalculated for '\(title)' with \(messageCount) messages")
+    
+    return ScrollView {
+      messageListContent
+        .background(contentGeometryReader)
+    }
+    .background(scrollViewGeometryReader)
+    .onChange(of: contentHeight) { _, _ in
+      checkForAutoLoad()
+    }
+    .onChange(of: scrollViewHeight) { _, _ in
+      checkForAutoLoad()
+    }
+    .navigationTitle(title)
+    .overlay(loadingOverlay)
     .onAppear {
       favoriteMessageService.setModelContext(modelContext)
     }
@@ -55,164 +134,184 @@ struct MessageListView: View {
       favoriteMessageService.setModelContext(modelContext)
     }
   }
+  
+  private func checkForAutoLoad() {
+    // 当内容高度接近滚动视图高度时触发加载更多
+    if contentHeight > scrollViewHeight * 0.7 && !isLoadingMore && !hasReachedEnd {
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+        loadMoreMessages()
+      }
+    }
+  }
+  
+  private func loadMoreMessages() {
+    guard let onLoadMore = onLoadMore, !isLoadingMore, !hasReachedEnd else {
+      return
+    }
+    
+    isLoadingMore = true
+    print("触发加载更多消息")
+    
+    Task {
+      await onLoadMore()
+      await MainActor.run {
+        isLoadingMore = false
+      }
+    }
+  }
 }
 
-struct SimpleMessageRowView: View {
+
+
+struct CompactMessageRowView: View {
   @ObservedObject var message: Message
   let preference: Preference
   @State private var showingTagInput: Bool = false
   @State private var newTag: String = ""
   @State private var favoriteMessageService = FavoriteMessageService.shared
   @Environment(\.modelContext) private var modelContext
+  @State private var isHovered: Bool = false
 
   private var isFavorite: Bool {
     message.isFavorite
   }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 4) {
-      HStack {
-        VStack(alignment: .leading, spacing: 2) {
-          Text(message.subject)
-            .font(.headline)
-
-          HStack {
-            Text(message.timestamp, style: .date)
-              .font(.caption)
-              .foregroundColor(.secondary)
-
-            #if os(macOS)
-              Spacer()
-
-              Text("ID: \(message.messageId)")
-                .font(.system(size: 8))
-                .foregroundColor(.secondary)
-                .lineLimit(1)
-                .truncationMode(.middle)
-            #endif
-          }
-
-          // Display sequence ID for debugging
-          HStack {
-            Text("Seq: \(message.seqId)")
-              .font(.system(size: 10))
-              .foregroundColor(.orange)
-              .padding(.horizontal, 4)
-              .padding(.vertical, 1)
-              .background(Color.orange.opacity(0.2))
-              .cornerRadius(2)
-
-            #if os(macOS)
-              Spacer()
-
-              Button(action: {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(message.messageId, forType: .string)
-              }) {
-                Image(systemName: "doc.on.doc")
-                  #if os(macOS)
-                    .font(.system(size: 10))
-                  #else
-                    .font(.system(size: 12))
-                  #endif
-                    .foregroundColor(.blue)
-              }
-              .buttonStyle(.plain)
-              .help("Copy Message ID")
-            #else
-              // iOS clipboard implementation
-              Button(action: {
-                UIPasteboard.general.string = message.messageId
-              }) {
-                Image(systemName: "doc.on.doc")
-                  .font(.system(size: 12))
-                  .foregroundColor(.blue)
-              }
-              .buttonStyle(.plain)
-              .help("Copy Message ID")
-            #endif
+    HStack(alignment: .center, spacing: 8) {
+      // 左边：标题
+      Text(message.subject)
+        .font(.system(size: 12))
+        .lineLimit(1)
+        .truncationMode(.tail)
+        .foregroundColor(.primary)
+      
+      Spacer()
+      
+      // 右边：工具按钮
+      HStack(spacing: 4) {
+        if isFavorite {
+          ForEach(message.tags, id: \.self) { tag in
+            TagChipView(tag: tag) {
+              favoriteMessageService.removeTag(tag, from: message.messageId)
+              message.tags.removeAll { $0 == tag }
+            }
           }
         }
+        
+        Button(action: {
+          showingTagInput = true
+        }) {
+          Image(systemName: "plus.circle")
+            .font(.system(size: 10))
+            .foregroundColor(.blue)
+        }
+        .buttonStyle(.plain)
+        #if os(macOS)
+        .popover(isPresented: $showingTagInput) {
+          VStack(spacing: 8) {
+            Text("Add Tag")
+              .font(.headline)
 
-        Spacer()
+            TextField("Tag name", text: $newTag)
+              .textFieldStyle(RoundedBorderTextFieldStyle())
 
-        HStack(spacing: 4) {
-          #if os(macOS)
-            // Only show tags for favorited messages on macOS
-            if isFavorite {
-              ForEach(message.tags, id: \.self) { tag in
-                TagChipView(tag: tag) {
-                  favoriteMessageService.removeTag(tag, from: message.messageId)
-                  message.tags.removeAll { $0 == tag }
-                }
+            HStack {
+              Button("Cancel") {
+                showingTagInput = false
+                newTag = ""
               }
+
+              Button("Add") {
+                if !newTag.isEmpty {
+                  favoriteMessageService.addTag(newTag, to: message.messageId)
+                  if !message.tags.contains(newTag) {
+                    message.tags.append(newTag)
+                  }
+                  newTag = ""
+                }
+                showingTagInput = false
+              }
+              .disabled(newTag.isEmpty)
             }
-          #endif
+          }
+          .padding()
+          .frame(width: 200)
+        }
+        #else
+        .sheet(isPresented: $showingTagInput) {
+          NavigationView {
+            VStack(spacing: 8) {
+              Text("Add Tag")
+                .font(.headline)
 
-          // Only show add tag button for favorited messages
-          if isFavorite {
-            Button(action: {
-              showingTagInput = true
-            }) {
-              Image(systemName: "plus.circle")
-                #if os(macOS)
-                  .font(.system(size: 14))
-                #else
-                  .font(.system(size: 16))
-                #endif
-                  .foregroundColor(.blue)
-            }
-            .buttonStyle(.plain)
-            .popover(isPresented: $showingTagInput) {
-              VStack(spacing: 8) {
-                Text("Add Tag")
-                  .font(.headline)
+              TextField("Tag name", text: $newTag)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
 
-                TextField("Tag name", text: $newTag)
-                  .textFieldStyle(RoundedBorderTextFieldStyle())
+              HStack {
+                Button("Cancel") {
+                  showingTagInput = false
+                  newTag = ""
+                }
 
-                HStack {
-                  Button("Cancel") {
-                    showingTagInput = false
+                Button("Add") {
+                  if !newTag.isEmpty {
+                    favoriteMessageService.addTag(newTag, to: message.messageId)
+                    if !message.tags.contains(newTag) {
+                      message.tags.append(newTag)
+                    }
                     newTag = ""
                   }
-
-                  Button("Add") {
-                    if !newTag.isEmpty {
-                      favoriteMessageService.addTag(newTag, to: message.messageId)
-                      if !message.tags.contains(newTag) {
-                        message.tags.append(newTag)
-                      }
-                      newTag = ""
-                    }
-                    showingTagInput = false
-                  }
-                  .disabled(newTag.isEmpty)
+                  showingTagInput = false
                 }
+                .disabled(newTag.isEmpty)
               }
-              .padding()
-              .frame(width: 200)
             }
+            .padding()
+            .navigationBarItems(trailing: Button("Done") {
+              showingTagInput = false
+            })
           }
-
-          Button(action: {
-            withAnimation(Animation.userPreferenceQuick) {
-              favoriteMessageService.toggleFavorite(message)
-            }
-          }) {
-            Image(systemName: isFavorite ? "star.fill" : "star")
-              #if os(macOS)
-                .font(.system(size: 14))
-              #else
-                .font(.system(size: 16))
-              #endif
-                .foregroundColor(isFavorite ? .yellow : .secondary)
-          }
-          .buttonStyle(.plain)
         }
+        #endif
+        
+        Button(action: {
+          withAnimation(AnimationConstants.quick) {
+            favoriteMessageService.toggleFavorite(message)
+          }
+        }) {
+          Image(systemName: isFavorite ? "star.fill" : "star")
+            .font(.system(size: 10))
+            .foregroundColor(isFavorite ? .yellow : .secondary)
+        }
+        .buttonStyle(.plain)
       }
     }
-    .padding(.vertical, 4)
+    .padding(.vertical, 8)
+    .padding(.horizontal, 12)
+    .background(
+      RoundedRectangle(cornerRadius: 8)
+        .fill(
+          isHovered 
+            ? Color.accentColor.opacity(0.1)
+            : Color.clear
+        )
+        .overlay(
+          RoundedRectangle(cornerRadius: 8)
+            .stroke(
+              isHovered 
+                ? Color.accentColor.opacity(0.3)
+                : Color.clear,
+              lineWidth: 1
+            )
+        )
+    )
+    #if os(macOS)
+    .onHover { hovering in
+      withAnimation(AnimationConstants.quick) {
+        isHovered = hovering
+      }
+    }
+    #endif
     .onAppear {
       favoriteMessageService.setModelContext(modelContext)
     }
