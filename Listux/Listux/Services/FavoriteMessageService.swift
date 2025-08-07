@@ -37,8 +37,13 @@ class FavoriteMessageService {
             if let favoriteMessage = message.toFavoriteMessage() {
                 print("FavoriteMessageService: Created favorite message successfully")
                 modelContext.insert(favoriteMessage)
-                try? modelContext.save()
-                print("FavoriteMessageService: Saved to persistent storage")
+                do {
+                    try modelContext.save()
+                    print("FavoriteMessageService: Saved to persistent storage successfully")
+                } catch {
+                    print("FavoriteMessageService: Failed to save to persistent storage: \(error)")
+                    message.isFavorite = false
+                }
             } else {
                 print("FavoriteMessageService: Failed to create favorite message")
                 message.isFavorite = false
@@ -47,33 +52,40 @@ class FavoriteMessageService {
     }
     
     func removeFavorite(messageId: String) {
-        guard let modelContext = modelContext else { return }
+        guard let modelContext = modelContext else { 
+            print("FavoriteMessageService: modelContext is nil in removeFavorite")
+            return 
+        }
         
-        let descriptor = FetchDescriptor<FavoriteMessage>(
-            predicate: #Predicate<FavoriteMessage> { $0.messageId == messageId }
-        )
+        let descriptor = FetchDescriptor<FavoriteMessage>()
         
         do {
             let favorites = try modelContext.fetch(descriptor)
-            favorites.forEach { modelContext.delete($0) }
+            let toRemove = favorites.filter { $0.messageId == messageId }
+            print("FavoriteMessageService: Found \(toRemove.count) favorites to remove for messageId: \(messageId)")
+            toRemove.forEach { modelContext.delete($0) }
             try modelContext.save()
+            print("FavoriteMessageService: Successfully removed favorite for messageId: \(messageId)")
         } catch {
-            print("Error removing favorite: \(error)")
+            print("FavoriteMessageService: Error removing favorite: \(error)")
         }
     }
     
     func getFavoriteMessage(messageId: String) -> FavoriteMessage? {
-        guard let modelContext = modelContext else { return nil }
+        guard let modelContext = modelContext else { 
+            print("FavoriteMessageService: modelContext is nil in getFavoriteMessage")
+            return nil 
+        }
         
-        let descriptor = FetchDescriptor<FavoriteMessage>(
-            predicate: #Predicate<FavoriteMessage> { $0.messageId == messageId }
-        )
+        let descriptor = FetchDescriptor<FavoriteMessage>()
         
         do {
             let favorites = try modelContext.fetch(descriptor)
-            return favorites.first
+            let result = favorites.first { $0.messageId == messageId }
+            print("FavoriteMessageService: getFavoriteMessage for \(messageId) - found: \(result != nil)")
+            return result
         } catch {
-            print("Error fetching favorite message: \(error)")
+            print("FavoriteMessageService: Error fetching favorite message: \(error)")
             return nil
         }
     }
@@ -90,13 +102,13 @@ class FavoriteMessageService {
         
         do {
             let favorites = try modelContext.fetch(descriptor)
-            print("FavoriteMessageService: Found \(favorites.count) favorite messages")
+            print("FavoriteMessageService: Found \(favorites.count) favorite messages in persistent storage")
             for favorite in favorites {
-                print("FavoriteMessageService: - \(favorite.messageId): \(favorite.subject)")
+                print("FavoriteMessageService: - \(favorite.messageId): \(favorite.subject) (tags: \(favorite.tags))")
             }
             return favorites
         } catch {
-            print("Error fetching all favorite messages: \(error)")
+            print("FavoriteMessageService: Error fetching all favorite messages: \(error)")
             return []
         }
     }
@@ -105,10 +117,18 @@ class FavoriteMessageService {
     
     func addTag(_ tag: String, to messageId: String) {
         guard let modelContext = modelContext,
-              let favoriteMessage = getFavoriteMessage(messageId: messageId) else { return }
+              let favoriteMessage = getFavoriteMessage(messageId: messageId) else { 
+            print("FavoriteMessageService: Failed to add tag '\(tag)' to messageId '\(messageId)' - favorite message not found")
+            return 
+        }
         
         favoriteMessage.addTag(tag)
-        try? modelContext.save()
+        do {
+            try modelContext.save()
+            print("FavoriteMessageService: Successfully added tag '\(tag)' to messageId '\(messageId)'")
+        } catch {
+            print("FavoriteMessageService: Failed to save tag '\(tag)' to messageId '\(messageId)': \(error)")
+        }
     }
     
     func addTag(_ tag: String, to message: Message) {
@@ -120,10 +140,18 @@ class FavoriteMessageService {
     
     func removeTag(_ tag: String, from messageId: String) {
         guard let modelContext = modelContext,
-              let favoriteMessage = getFavoriteMessage(messageId: messageId) else { return }
+              let favoriteMessage = getFavoriteMessage(messageId: messageId) else { 
+            print("FavoriteMessageService: Failed to remove tag '\(tag)' from messageId '\(messageId)' - favorite message not found")
+            return 
+        }
         
         favoriteMessage.removeTag(tag)
-        try? modelContext.save()
+        do {
+            try modelContext.save()
+            print("FavoriteMessageService: Successfully removed tag '\(tag)' from messageId '\(messageId)'")
+        } catch {
+            print("FavoriteMessageService: Failed to save tag removal '\(tag)' from messageId '\(messageId)': \(error)")
+        }
     }
     
     func getTags(for messageId: String) -> [String] {
@@ -133,7 +161,9 @@ class FavoriteMessageService {
     func getAllTags() -> [String] {
         let allFavorites = getAllFavoriteMessages()
         let allTags = Set(allFavorites.flatMap { $0.tags })
-        return Array(allTags).sorted()
+        let sortedTags = Array(allTags).sorted()
+        print("FavoriteMessageService: getAllTags returned \(sortedTags.count) tags: \(sortedTags)")
+        return sortedTags
     }
     
     func getMessagesWithTag(_ tag: String) -> [String] {
@@ -166,6 +196,58 @@ class FavoriteMessageService {
     func syncMessagesWithPersistentStorage(_ messages: [Message]) {
         for message in messages {
             syncMessageWithPersistentStorage(message)
+        }
+    }
+    
+    // MARK: - Debug and Verification
+    
+    func verifyPersistence() {
+        guard let modelContext = modelContext else {
+            print("FavoriteMessageService: Cannot verify persistence - modelContext is nil")
+            return
+        }
+        
+        let descriptor = FetchDescriptor<FavoriteMessage>()
+        do {
+            let favorites = try modelContext.fetch(descriptor)
+            print("FavoriteMessageService: Persistence verification - Found \(favorites.count) favorite messages")
+            for favorite in favorites {
+                print("FavoriteMessageService: - \(favorite.messageId): \(favorite.subject) (tags: \(favorite.tags))")
+            }
+        } catch {
+            print("FavoriteMessageService: Error verifying persistence: \(error)")
+        }
+    }
+    
+    func forceSave() {
+        guard let modelContext = modelContext else {
+            print("FavoriteMessageService: Cannot force save - modelContext is nil")
+            return
+        }
+        
+        do {
+            try modelContext.save()
+            print("FavoriteMessageService: Force save completed successfully")
+        } catch {
+            print("FavoriteMessageService: Force save failed: \(error)")
+        }
+    }
+    
+    func checkDataOnStartup() {
+        guard let modelContext = modelContext else {
+            print("FavoriteMessageService: Cannot check data - modelContext is nil")
+            return
+        }
+        
+        let descriptor = FetchDescriptor<FavoriteMessage>()
+        do {
+            let favorites = try modelContext.fetch(descriptor)
+            print("FavoriteMessageService: Startup check - Found \(favorites.count) favorite messages")
+            for favorite in favorites {
+                print("FavoriteMessageService: - \(favorite.messageId): \(favorite.subject) (tags: \(favorite.tags))")
+            }
+        } catch {
+            print("FavoriteMessageService: Error checking data on startup: \(error)")
         }
     }
 } 

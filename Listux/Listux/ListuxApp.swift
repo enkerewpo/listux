@@ -18,7 +18,22 @@ struct ListuxApp: App {
     let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
     do {
-      return try ModelContainer(for: schema, configurations: [modelConfiguration])
+      let container = try ModelContainer(for: schema, configurations: [modelConfiguration])
+      
+      // Debug: Check if FavoriteMessage data persists
+      let context = container.mainContext
+      let descriptor = FetchDescriptor<FavoriteMessage>()
+      do {
+        let favorites = try context.fetch(descriptor)
+        print("ListuxApp: Found \(favorites.count) favorite messages on app startup")
+        for favorite in favorites {
+          print("ListuxApp: - \(favorite.messageId): \(favorite.subject) (tags: \(favorite.tags))")
+        }
+      } catch {
+        print("ListuxApp: Error fetching favorites on startup: \(error)")
+      }
+      
+      return container
     } catch {
       fatalError("Could not create ModelContainer: \(error)")
     }

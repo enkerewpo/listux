@@ -19,8 +19,9 @@ struct MessageListView: View {
   @State private var favoriteMessageService = FavoriteMessageService.shared
   @State private var isLoadingMore: Bool = false
   @State private var hasReachedEnd: Bool = false
-  @State private var scrollViewHeight: CGFloat = 0
+  @State private var scrollOffset: CGFloat = 0
   @State private var contentHeight: CGFloat = 0
+  @State private var scrollViewHeight: CGFloat = 0
 
   private var preference: Preference {
     if let existing = preferences.first {
@@ -28,6 +29,7 @@ struct MessageListView: View {
     } else {
       let new = Preference()
       modelContext.insert(new)
+      try? modelContext.save()
       return new
     }
   }
@@ -75,38 +77,6 @@ struct MessageListView: View {
     }
   }
   
-  private var contentGeometryReader: some View {
-    GeometryReader { geometry in
-      Color.clear
-        .onAppear {
-          contentHeight = geometry.size.height
-        }
-        .onChange(of: geometry.size.height) { _, newHeight in
-          contentHeight = newHeight
-        }
-    }
-  }
-  
-  private var scrollViewGeometryReader: some View {
-    GeometryReader { geometry in
-      Color.clear
-        .onAppear {
-          scrollViewHeight = geometry.size.height
-        }
-        .onChange(of: geometry.size.height) { _, newHeight in
-          scrollViewHeight = newHeight
-        }
-    }
-  }
-  
-  private var loadingOverlay: some View {
-    Group {
-      if isLoading && messages.isEmpty {
-        ProgressView("Loading...")
-      }
-    }
-  }
-  
   var body: some View {
     let sortedMessages = self.sortedMessages
     let messageCount = messages.count
@@ -116,9 +86,29 @@ struct MessageListView: View {
     
     return ScrollView {
       messageListContent
-        .background(contentGeometryReader)
+        .background(
+          GeometryReader { contentGeometry in
+            Color.clear
+              .onAppear {
+                contentHeight = contentGeometry.size.height
+              }
+              .onChange(of: contentGeometry.size.height) { _, newHeight in
+                contentHeight = newHeight
+              }
+          }
+        )
     }
-    .background(scrollViewGeometryReader)
+    .background(
+      GeometryReader { scrollGeometry in
+        Color.clear
+          .onAppear {
+            scrollViewHeight = scrollGeometry.size.height
+          }
+          .onChange(of: scrollGeometry.size.height) { _, newHeight in
+            scrollViewHeight = newHeight
+          }
+      }
+    )
     .onChange(of: contentHeight) { _, _ in
       checkForAutoLoad()
     }
@@ -126,7 +116,13 @@ struct MessageListView: View {
       checkForAutoLoad()
     }
     .navigationTitle(title)
-    .overlay(loadingOverlay)
+    .overlay(
+      Group {
+        if isLoading && messages.isEmpty {
+          ProgressView("Loading...")
+        }
+      }
+    )
     .onAppear {
       favoriteMessageService.setModelContext(modelContext)
     }
@@ -136,9 +132,17 @@ struct MessageListView: View {
   }
   
   private func checkForAutoLoad() {
-    // 当内容高度接近滚动视图高度时触发加载更多
-    if contentHeight > scrollViewHeight * 0.7 && !isLoadingMore && !hasReachedEnd {
-      DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+    // Only check if we have an onLoadMore function and we're not already loading
+    guard let onLoadMore = onLoadMore, !isLoadingMore, !hasReachedEnd else {
+      return
+    }
+    
+    // Check if content height is greater than scroll view height (indicating scrollable content)
+    // and if we're close to the bottom (within 100 points)
+    let scrollableContent = contentHeight - scrollViewHeight
+    if scrollableContent > 0 && scrollableContent < 100 {
+      print("MessageListView: Triggering auto-load - contentHeight: \(contentHeight), scrollViewHeight: \(scrollViewHeight)")
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
         loadMoreMessages()
       }
     }
@@ -146,11 +150,12 @@ struct MessageListView: View {
   
   private func loadMoreMessages() {
     guard let onLoadMore = onLoadMore, !isLoadingMore, !hasReachedEnd else {
+      print("MessageListView: Skipping loadMoreMessages - onLoadMore: \(onLoadMore != nil), isLoadingMore: \(isLoadingMore), hasReachedEnd: \(hasReachedEnd)")
       return
     }
     
     isLoadingMore = true
-    print("触发加载更多消息")
+    print("MessageListView: Triggering load more messages")
     
     Task {
       await onLoadMore()

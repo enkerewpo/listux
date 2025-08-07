@@ -75,6 +75,7 @@ struct SidebarView: View {
     } else {
       let new = Preference()
       modelContext.insert(new)
+      try? modelContext.save()
       return new
     }
   }

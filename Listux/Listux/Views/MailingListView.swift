@@ -17,6 +17,7 @@ struct MailingListView: View {
     } else {
       let new = Preference()
       modelContext.insert(new)
+      try? modelContext.save()
       return new
     }
   }
@@ -137,12 +138,18 @@ struct MailingListMessageView: View {
       onLoadMore: loadMoreMessages
     )
     .onAppear {
-      loadMessages()
+      if messages.isEmpty {
+        loadMessages()
+      }
     }
   }
 
   private func loadMessages() {
+    guard !isLoading else { return }
+    
     isLoading = true
+    print("MailingListMessageView: Loading initial messages for \(mailingList.name)")
+    
     Task {
       do {
         let html = try await NetworkService.shared.fetchListPage(mailingList.name)
@@ -151,19 +158,25 @@ struct MailingListMessageView: View {
           messages = result.messages
           nextURL = result.nextURL
           isLoading = false
+          print("MailingListMessageView: Loaded \(result.messages.count) initial messages")
         }
       } catch {
         await MainActor.run {
           isLoading = false
+          print("MailingListMessageView: Failed to load initial messages: \(error)")
         }
       }
     }
   }
   
   private func loadMoreMessages() async {
-    guard let nextURL = nextURL, !hasReachedEnd else {
+    guard let nextURL = nextURL, !hasReachedEnd, !isLoadingMore else {
+      print("MailingListMessageView: Skipping loadMoreMessages - nextURL: \(nextURL != nil), hasReachedEnd: \(hasReachedEnd), isLoadingMore: \(isLoadingMore)")
       return
     }
+    
+    isLoadingMore = true
+    print("MailingListMessageView: Loading more messages from \(nextURL)")
     
     do {
       let html = try await NetworkService.shared.fetchURL(nextURL)
@@ -175,9 +188,14 @@ struct MailingListMessageView: View {
         if result.nextURL == nil {
           hasReachedEnd = true
         }
+        isLoadingMore = false
+        print("MailingListMessageView: Loaded \(result.messages.count) more messages, hasReachedEnd: \(hasReachedEnd)")
       }
     } catch {
-      print("Failed to load more messages: \(error)")
+      await MainActor.run {
+        isLoadingMore = false
+        print("MailingListMessageView: Failed to load more messages: \(error)")
+      }
     }
   }
 }

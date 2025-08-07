@@ -5,7 +5,6 @@ import SwiftUI
 @Model
 final class Preference {
 
-  var favoriteLists: [String] = []  // Store list names instead of objects
   var pinnedLists: [String] = []    // Store list names instead of objects
   var lastViewedList: String?       // Store list name instead of object
   
@@ -16,18 +15,6 @@ final class Preference {
 
   init() {}
 
-  func toggleFavorite(_ list: MailingList) {
-    if favoriteLists.contains(list.name) {
-      favoriteLists.removeAll { $0 == list.name }
-    } else {
-      favoriteLists.append(list.name)
-    }
-  }
-
-  func isFavorite(_ list: MailingList) -> Bool {
-    favoriteLists.contains(list.name)
-  }
-
   func togglePinned(_ list: MailingList) {
     if pinnedLists.contains(list.name) {
       pinnedLists.removeAll { $0 == list.name }
@@ -36,6 +23,8 @@ final class Preference {
       pinnedLists.append(list.name)
       list.isPinned = true
     }
+    // Save changes to SwiftData
+    try? modelContext?.save()
   }
 
   func isPinned(_ list: MailingList) -> Bool {

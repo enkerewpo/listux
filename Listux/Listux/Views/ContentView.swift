@@ -39,6 +39,8 @@ struct ContentView: View {
     } else {
       let new = Preference()
       modelContext.insert(new)
+      // Save the new preference to SwiftData
+      try? modelContext.save()
       return new
     }
   }
@@ -236,6 +238,7 @@ struct ContentView: View {
       }
       .onAppear {
         favoriteMessageService.setModelContext(modelContext)
+        favoriteMessageService.checkDataOnStartup()
         settingsManager.onDataCleared = {
           withAnimation(Animation.userPreference) {
             selectedTag = nil
@@ -287,8 +290,7 @@ struct ContentView: View {
 
         NavigationStack {
           FavoritesView(
-            preference: preference,
-            allMailingLists: mailingLists
+            preference: preference
           )
         }
         .tabItem {
@@ -309,6 +311,8 @@ struct ContentView: View {
         .tag(SidebarTab.settings)
       }
       .onAppear {
+        favoriteMessageService.setModelContext(modelContext)
+        favoriteMessageService.checkDataOnStartup()
         settingsManager.onDataCleared = {
           selectedSidebarTab = .lists
           // Reset mailing lists and reload
