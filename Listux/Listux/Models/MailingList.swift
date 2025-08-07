@@ -1,7 +1,7 @@
 import Foundation
 
 // Non-persistent MailingList model - only stored in memory
-final class MailingList: Identifiable, Equatable, Hashable {
+final class MailingList: Identifiable, Equatable, Hashable, ObservableObject {
 
   var id: UUID
   var name: String
@@ -9,9 +9,9 @@ final class MailingList: Identifiable, Equatable, Hashable {
   var isPinned: Bool = false
 
   // Non-persistent messages array
-  var messages: [Message] = []
+  @Published var messages: [Message] = []
   // Store ordered message IDs for in-memory ordering
-  var orderedMessageIds: [String] = []
+  @Published var orderedMessageIds: [String] = []
 
   init(name: String, desc: String, isPinned: Bool = false) {
     self.id = UUID()
@@ -77,5 +77,38 @@ final class MailingList: Identifiable, Equatable, Hashable {
     // Update both messages array and ordered IDs
     self.messages = uniqueMessages
     orderedMessageIds = uniqueMessages.map { $0.messageId }
+  }
+
+  // Method to append new messages (for pagination)
+  func appendOrderedMessages(_ newMessages: [Message]) {
+    print("Appending ordered messages for '\(name)': \(newMessages.count) new messages")
+    print("Current messages count: \(messages.count)")
+    print("Current orderedMessageIds count: \(orderedMessageIds.count)")
+
+    let existingIds = Set(messages.map { $0.messageId })
+    print("Existing message IDs: \(existingIds.count)")
+
+    var messagesToAdd: [Message] = []
+
+    for message in newMessages {
+      print("Checking message: \(message.messageId) - \(message.subject)")
+      if !existingIds.contains(message.messageId) {
+        messagesToAdd.append(message)
+        print("  [\(messagesToAdd.count-1)] SeqID: \(message.seqId), Subject: \(message.subject)")
+      } else {
+        print("  Skipping duplicate message: \(message.messageId)")
+      }
+    }
+
+    if !messagesToAdd.isEmpty {
+      // Append new messages to existing ones
+      self.messages.append(contentsOf: messagesToAdd)
+      self.orderedMessageIds.append(contentsOf: messagesToAdd.map { $0.messageId })
+      print("  Total messages after append: \(self.messages.count)")
+      print("  Total orderedMessageIds after append: \(self.orderedMessageIds.count)")
+      print("  Last few orderedMessageIds: \(self.orderedMessageIds.suffix(5))")
+    } else {
+      print("  No new messages to add")
+    }
   }
 }

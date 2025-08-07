@@ -45,10 +45,13 @@ class Parser {
     return dateFormatter.date(from: timestampString)
   }
 
-  static func parseMsgsFromListPage(from html: String, mailingList: MailingList)
+  static func parseMsgsFromListPage(
+    from html: String, mailingList: MailingList, startingSeqId: Int = 0
+  )
     -> MessagePageResult
   {
-    LogManager.shared.info("Parsing messages at list \(mailingList.name)")
+    LogManager.shared.info(
+      "Parsing messages at list \(mailingList.name) with starting seqId: \(startingSeqId)")
     var rootMessages: [Message] = []
     var messageMap: [String: Message] = [:]
     var orderedMessages: [Message] = []
@@ -60,7 +63,9 @@ class Parser {
       let doc = try SwiftSoup.parse(html)
       let links = try doc.select("a[href$=/T/#t], a[href$=/T/#u]")
 
-      var seqId = 0  // Sequential id counter
+      LogManager.shared.info("Found \(links.count) message links in HTML")
+
+      var seqId = startingSeqId  // Use the provided starting seqId
       var lastRootMessage: Message? = nil
       var seenUrls = Set<String>()  // Track seen URLs to avoid duplicates
 
@@ -79,6 +84,8 @@ class Parser {
         let parent = link.parent()
         let dateText = try parent?.text() ?? ""
 
+        LogManager.shared.info("Parsing message \(seqId): \(subject)")
+
         // Try to extract timestamp from URL first, fallback to parsing date text
         var timestamp: Date
         if let urlTimestamp = extractTimestampFromURL(url) {
@@ -92,6 +99,8 @@ class Parser {
           timestamp = dateFormatter.date(from: dateText) ?? Date()
           LogManager.shared.info("Parsed timestamp from text: \(timestamp)")
         }
+
+        LogManager.shared.info("Message timestamp: \(timestamp) for seqId: \(seqId)")
 
         var fullUrl =
           LORE_LINUX_BASE_URL.value + "/" + mailingList.name + "/"
@@ -136,6 +145,8 @@ class Parser {
         let messageId = url.split(separator: "/").first.map(String.init) ?? ""
         messageMap[messageId] = message
         orderedMessages.append(message)
+        LogManager.shared.info(
+          "Added message to orderedMessages: seqId=\(message.seqId), subject=\(message.subject)")
 
         if let range = html.range(of: url) {
           let startIndex = range.lowerBound
@@ -176,12 +187,19 @@ class Parser {
         let href = try link.attr("href")
         if caption.contains("next (older)") {
           nextURL = href
+          LogManager.shared.info("Found next URL: \(href)")
         } else if caption.contains("prev (newer)") {
           prevURL = href
+          LogManager.shared.info("Found prev URL: \(href)")
         } else if caption.contains("latest") {
           latestURL = href
+          LogManager.shared.info("Found latest URL: \(href)")
         }
       }
+
+      LogManager.shared.info(
+        "Pagination URLs - next: \(nextURL ?? "nil"), prev: \(prevURL ?? "nil"), latest: \(latestURL ?? "nil")"
+      )
     } catch {
       LogManager.shared.error("Error parsing HTML: \(error.localizedDescription)")
     }

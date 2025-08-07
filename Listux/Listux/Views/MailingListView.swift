@@ -118,6 +118,7 @@ struct MailingListMessageView: View {
   @State private var nextURL: String?
   @State private var hasReachedEnd: Bool = false
   @State private var selectedMessage: Message? = nil
+  @State private var uiUpdateTrigger: Bool = false
   @Environment(\.modelContext) private var modelContext
   @Query private var preferences: [Preference]
 
@@ -137,9 +138,13 @@ struct MailingListMessageView: View {
         messages: messages,
         title: mailingList.name,
         isLoading: isLoading,
-        onLoadMore: loadMoreMessages,
+        onLoadMore: {
+          await loadMoreMessages()
+        },
+        hasReachedEnd: hasReachedEnd,
         selectedMessage: $selectedMessage
       )
+      .id(uiUpdateTrigger)  // Force view refresh when trigger changes
       .onAppear {
         if messages.isEmpty {
           loadMessages()
@@ -173,12 +178,16 @@ struct MailingListMessageView: View {
     Task {
       do {
         let html = try await NetworkService.shared.fetchListPage(mailingList.name)
-        let result = Parser.parseMsgsFromListPage(from: html, mailingList: mailingList)
+        let result = Parser.parseMsgsFromListPage(
+          from: html, mailingList: mailingList, startingSeqId: 0)
         await MainActor.run {
           messages = result.messages
           nextURL = result.nextURL
+          hasReachedEnd = result.nextURL == nil
           isLoading = false
-          print("MailingListMessageView: Loaded \(result.messages.count) initial messages")
+          print(
+            "MailingListMessageView: Loaded \(result.messages.count) initial messages, hasReachedEnd: \(hasReachedEnd), nextURL: \(result.nextURL ?? "nil")"
+          )
         }
       } catch {
         await MainActor.run {
@@ -190,6 +199,7 @@ struct MailingListMessageView: View {
   }
 
   private func loadMoreMessages() async {
+    print("MailingListMessageView: loadMoreMessages called")
     guard let nextURL = nextURL, !hasReachedEnd, !isLoadingMore else {
       print(
         "MailingListMessageView: Skipping loadMoreMessages - nextURL: \(nextURL != nil), hasReachedEnd: \(hasReachedEnd), isLoadingMore: \(isLoadingMore)"
@@ -201,18 +211,54 @@ struct MailingListMessageView: View {
     print("MailingListMessageView: Loading more messages from \(nextURL)")
 
     do {
-      let html = try await NetworkService.shared.fetchURL(nextURL)
-      let result = Parser.parseMsgsFromListPage(from: html, mailingList: mailingList)
+      // Construct full URL from relative URL
+      let fullURL: String
+      if nextURL.hasPrefix("http") {
+        fullURL = nextURL
+      } else if nextURL.hasPrefix("/") {
+        // Absolute path from root
+        fullURL = "\(LORE_LINUX_BASE_URL.value)\(nextURL)"
+      } else {
+        // Relative path, append to current list URL
+        fullURL = "\(LORE_LINUX_BASE_URL.value)/\(mailingList.name)/\(nextURL)"
+      }
+
+      print("MailingListMessageView: Fetching from full URL: \(fullURL)")
+      let html = try await NetworkService.shared.fetchURL(fullURL)
+
+      // Calculate starting seqId based on existing messages
+      let startingSeqId = messages.isEmpty ? 0 : (messages.map { $0.seqId }.max() ?? -1) + 1
+      let result = Parser.parseMsgsFromListPage(
+        from: html, mailingList: mailingList, startingSeqId: startingSeqId)
 
       await MainActor.run {
-        messages.append(contentsOf: result.messages)
-        self.nextURL = result.nextURL
-        if result.nextURL == nil {
-          hasReachedEnd = true
+        let oldCount = messages.count
+        let existingIds = Set(messages.map { $0.messageId })
+        var messagesToAdd: [Message] = []
+
+        for message in result.messages {
+          if !existingIds.contains(message.messageId) {
+            messagesToAdd.append(message)
+            print(
+              "  [\(messagesToAdd.count-1)] SeqID: \(message.seqId), Subject: \(message.subject)")
+          } else {
+            print("  Skipping duplicate message: \(message.messageId)")
+          }
         }
+
+        messages.append(contentsOf: messagesToAdd)
+        self.nextURL = result.nextURL
+        hasReachedEnd = result.nextURL == nil
         isLoadingMore = false
+
+        // Force UI update
+        mailingList.objectWillChange.send()
+
+        // Trigger UI update
+        uiUpdateTrigger.toggle()
+
         print(
-          "MailingListMessageView: Loaded \(result.messages.count) more messages, hasReachedEnd: \(hasReachedEnd)"
+          "MailingListMessageView: Loaded \(messagesToAdd.count) more messages (total: \(messages.count)), hasReachedEnd: \(hasReachedEnd), nextURL: \(result.nextURL ?? "nil")"
         )
       }
     } catch {

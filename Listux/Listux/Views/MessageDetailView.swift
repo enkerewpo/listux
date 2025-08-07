@@ -59,7 +59,7 @@ struct MessageDetailView: View {
   }
 
   private var availableTabs: [String] {
-    guard let detail = parsedDetail else { return [] }
+    guard parsedDetail != nil else { return [] }
     return ["Metadata", "Content"]
   }
 
@@ -161,7 +161,7 @@ struct MessageDetailView: View {
         #endif
 
         // Fixed toolbar - NO SCROLLING
-        if let detail = parsedDetail {
+        if parsedDetail != nil {
           HStack(spacing: 8) {
             // Tab selector with icons
             if availableTabs.count > 1 {

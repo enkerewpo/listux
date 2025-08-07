@@ -14,15 +14,13 @@ struct MessageListView: View {
   let title: String
   let isLoading: Bool
   let onLoadMore: (() async -> Void)?
+  let hasReachedEnd: Bool
   @Binding var selectedMessage: Message?
   @Environment(\.modelContext) private var modelContext
   @Query private var preferences: [Preference]
   @State private var favoriteMessageService = FavoriteMessageService.shared
   @State private var isLoadingMore: Bool = false
-  @State private var hasReachedEnd: Bool = false
-  @State private var scrollOffset: CGFloat = 0
-  @State private var contentHeight: CGFloat = 0
-  @State private var scrollViewHeight: CGFloat = 0
+  @State private var lastMessageIdBeforeLoad: String? = nil
 
   private var preference: Preference {
     if let existing = preferences.first {
@@ -55,31 +53,83 @@ struct MessageListView: View {
 
   private var messageListContent: some View {
     LazyVStack(spacing: 0) {
-      ForEach(Array(sortedMessages.enumerated()), id: \.element.messageId) { index, message in
-        Button(action: {
-          print("MessageListView: Button tapped for message: \(message.subject)")
-          withAnimation(AnimationConstants.quick) {
-            selectedMessage = message
-          }
-        }) {
-          CompactMessageRowView(
-            message: message, preference: preference,
-            isSelected: selectedMessage?.messageId == message.messageId)
+      // Show initial state message when no messages
+      if messages.isEmpty && !isLoading {
+        VStack(spacing: 12) {
+          Image(systemName: "list.bullet")
+            .font(.system(size: 24))
+            .foregroundColor(.secondary)
+          Text("Please select a mailing list")
+            .font(.system(size: 14))
+            .foregroundColor(.secondary)
         }
-        .buttonStyle(PlainButtonStyle())
-        .background(
-          Rectangle()
-            .fill(alternatingRowColor(for: index))
-            .opacity(0.3)
-        )
-      }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.top, 40)
+      } else {
+        ForEach(Array(sortedMessages.enumerated()), id: \.element.messageId) { index, message in
+          Button(action: {
+            print("MessageListView: Button tapped for message: \(message.subject)")
+            withAnimation(AnimationConstants.quick) {
+              selectedMessage = message
+            }
+          }) {
+            CompactMessageRowView(
+              message: message, preference: preference,
+              isSelected: selectedMessage?.messageId == message.messageId)
+          }
+          .buttonStyle(PlainButtonStyle())
+          .background(
+            Rectangle()
+              .fill(alternatingRowColor(for: index))
+              .opacity(0.3)
+          )
+        }
 
-      if isLoadingMore {
-        HStack {
-          Spacer()
-          ProgressView("Loading more...")
-            .padding()
-          Spacer()
+        if isLoadingMore {
+          HStack {
+            Spacer()
+            ProgressView("Loading more...")
+              .padding()
+            Spacer()
+          }
+        }
+
+        // Load Next Page button - subtle and always show
+        if !messages.isEmpty {
+          Button(action: {
+            print("MessageListView: Load Next Page button tapped")
+            // Record the last message ID before loading
+            if let lastMessage = sortedMessages.last {
+              lastMessageIdBeforeLoad = lastMessage.messageId
+              print("MessageListView: Recording last message ID: \(lastMessage.messageId)")
+              print("MessageListView: Last message subject: \(lastMessage.subject)")
+            } else {
+              print("MessageListView: No last message found")
+            }
+            loadMoreMessages()
+          }) {
+            HStack(spacing: 6) {
+              Image(systemName: "arrow.down")
+                .font(.system(size: 12))
+              Text("Load Next Page")
+                .font(.system(size: 12))
+            }
+            .foregroundColor(.secondary)
+            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .background(
+              RoundedRectangle(cornerRadius: 6)
+                .fill(Color.secondary.opacity(0.1))
+            )
+          }
+          .buttonStyle(.plain)
+          .padding(.top, 8)
+          .padding(.bottom, 16)
+          .disabled(isLoadingMore)
+          .opacity(isLoadingMore ? 0.5 : 1.0)
+          .onAppear {
+            print("MessageListView: Load Next Page button appeared!")
+          }
         }
       }
     }
@@ -91,47 +141,42 @@ struct MessageListView: View {
   }
 
   var body: some View {
-    let sortedMessages = self.sortedMessages
     let messageCount = messages.count
     let title = self.title
 
-    print("MessageListView body recalculated for '\(title)' with \(messageCount) messages")
+    print(
+      "MessageListView body recalculated for '\(title)' with \(messageCount) messages, onLoadMore: \(onLoadMore != nil)"
+    )
 
-    return ScrollView {
-      messageListContent
-        .background(
-          GeometryReader { contentGeometry in
-            Color.clear
-              .onAppear {
-                contentHeight = contentGeometry.size.height
-              }
-              .onChange(of: contentGeometry.size.height) { _, newHeight in
-                contentHeight = newHeight
-              }
+    return ScrollViewReader { proxy in
+      ScrollView {
+        messageListContent
+      }
+      .onChange(of: messages.count) { oldCount, newCount in
+        // When new messages are added, scroll to the last message from previous page
+        if newCount > oldCount, let lastMessageId = lastMessageIdBeforeLoad {
+          print("MessageListView: Scrolling to last message from previous page: \(lastMessageId)")
+          print("MessageListView: Old count: \(oldCount), New count: \(newCount)")
+          print(
+            "MessageListView: Current messages: \(sortedMessages.map { $0.messageId }.suffix(5))")
+
+          // Wait longer for UI to update completely
+          DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            print("MessageListView: Attempting to scroll to: \(lastMessageId)")
+            withAnimation(.easeInOut(duration: 0.3)) {
+              proxy.scrollTo(lastMessageId, anchor: .bottom)
+            }
           }
-        )
+          lastMessageIdBeforeLoad = nil
+        } else if newCount > oldCount {
+          print("MessageListView: New messages added but no lastMessageId recorded")
+        }
+      }
     }
     #if os(iOS)
       .scrollContentBackground(.hidden)
       .scrollIndicators(.hidden)
     #endif
-    .background(
-      GeometryReader { scrollGeometry in
-        Color.clear
-          .onAppear {
-            scrollViewHeight = scrollGeometry.size.height
-          }
-          .onChange(of: scrollGeometry.size.height) { _, newHeight in
-            scrollViewHeight = newHeight
-          }
-      }
-    )
-    .onChange(of: contentHeight) { _, _ in
-      checkForAutoLoad()
-    }
-    .onChange(of: scrollViewHeight) { _, _ in
-      checkForAutoLoad()
-    }
     .navigationTitle(title)
     #if os(iOS)
       .navigationBarTitleDisplayMode(.inline)
@@ -151,30 +196,16 @@ struct MessageListView: View {
     }
   }
 
-  private func checkForAutoLoad() {
-    // Only check if we have an onLoadMore function and we're not already loading
-    guard let onLoadMore = onLoadMore, !isLoadingMore, !hasReachedEnd else {
+  private func loadMoreMessages() {
+    print("MessageListView: loadMoreMessages called")
+    print("MessageListView: onLoadMore is \(onLoadMore != nil ? "available" : "nil")")
+    guard let onLoadMore = onLoadMore else {
+      print("MessageListView: No onLoadMore callback available")
       return
     }
 
-    // Check if content height is greater than scroll view height (indicating scrollable content)
-    // and if we're close to the bottom (within 100 points)
-    let scrollableContent = contentHeight - scrollViewHeight
-    if scrollableContent > 0 && scrollableContent < 100 {
-      print(
-        "MessageListView: Triggering auto-load - contentHeight: \(contentHeight), scrollViewHeight: \(scrollViewHeight)"
-      )
-      DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-        loadMoreMessages()
-      }
-    }
-  }
-
-  private func loadMoreMessages() {
-    guard let onLoadMore = onLoadMore, !isLoadingMore, !hasReachedEnd else {
-      print(
-        "MessageListView: Skipping loadMoreMessages - onLoadMore: \(onLoadMore != nil), isLoadingMore: \(isLoadingMore), hasReachedEnd: \(hasReachedEnd)"
-      )
+    if isLoadingMore {
+      print("MessageListView: Already loading more messages")
       return
     }
 
@@ -185,6 +216,7 @@ struct MessageListView: View {
       await onLoadMore()
       await MainActor.run {
         isLoadingMore = false
+        print("MessageListView: loadMoreMessages completed")
       }
     }
   }
@@ -203,7 +235,14 @@ struct CompactMessageRowView: View {
   }
 
   var body: some View {
-    HStack(alignment: .center, spacing: 8) {
+    HStack(alignment: .center, spacing: 6) {
+      // Debug seqId - always visible with proper width
+      Text("#\(message.seqId)")
+        .font(.system(size: 10, weight: .bold))
+        .foregroundColor(.primary)
+        .frame(width: 30, alignment: .leading)
+        .lineLimit(1)
+
       // 左边：标题
       Text(message.subject)
         .font(.system(size: 12))

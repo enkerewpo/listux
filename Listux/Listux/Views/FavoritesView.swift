@@ -64,6 +64,7 @@ struct FavoritesMessageView: View {
         title: tag,
         isLoading: isLoading,
         onLoadMore: nil,
+        hasReachedEnd: true,
         selectedMessage: $selectedMessage
       )
       .onAppear {
