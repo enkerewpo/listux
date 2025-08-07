@@ -11,6 +11,8 @@ struct TaggedMessageRowView: View {
   @State private var isHovered: Bool = false
   @State private var showingTagInput: Bool = false
   @State private var newTag: String = ""
+  @State private var favoriteMessageService = FavoriteMessageService.shared
+  @Environment(\.modelContext) private var modelContext
 
   var body: some View {
     VStack(alignment: .leading, spacing: 4) {
@@ -66,10 +68,10 @@ struct TaggedMessageRowView: View {
 
         HStack(spacing: 4) {
           // Only show tags for favorited messages
-          if preference.isFavoriteMessage(message.messageId) {
-            ForEach(preference.getTags(for: message.messageId), id: \.self) { tag in
+          if favoriteMessageService.getFavoriteMessage(messageId: message.messageId) != nil {
+            ForEach(favoriteMessageService.getTags(for: message.messageId), id: \.self) { tag in
               TagChipView(tag: tag) {
-                preference.removeTag(tag, from: message.messageId)
+                favoriteMessageService.removeTag(tag, from: message.messageId)
               }
             }
 
@@ -101,7 +103,7 @@ struct TaggedMessageRowView: View {
 
                   Button("Add") {
                     if !newTag.isEmpty {
-                      preference.addTag(newTag, to: message.messageId)
+                      favoriteMessageService.addTag(newTag, to: message.messageId)
                       newTag = ""
                     }
                     showingTagInput = false
@@ -116,7 +118,7 @@ struct TaggedMessageRowView: View {
 
           Button(action: {
             withAnimation(Animation.userPreferenceQuick) {
-              preference.toggleFavoriteMessage(message.messageId)
+              favoriteMessageService.toggleFavorite(message)
             }
           }) {
             Image(systemName: "star.fill")
@@ -148,6 +150,12 @@ struct TaggedMessageRowView: View {
     .animation(Animation.userPreferenceQuick, value: isHovered)
     .animation(
       Animation.userPreferenceQuick, value: selectedMessage?.messageId == message.messageId)
+    .onAppear {
+      favoriteMessageService.setModelContext(modelContext)
+    }
+    .task {
+      favoriteMessageService.setModelContext(modelContext)
+    }
   }
 }
 
@@ -189,6 +197,8 @@ struct TaggedMessagesView: View {
   let messages: [Message]
   @Binding var selectedMessage: Message?
   let preference: Preference
+  @Environment(\.modelContext) private var modelContext
+  @State private var favoriteMessageService = FavoriteMessageService.shared
 
   var body: some View {
     VStack(spacing: 0) {
@@ -235,6 +245,12 @@ struct TaggedMessagesView: View {
         #endif
         .frame(maxWidth: .infinity, maxHeight: .infinity)
       }
+    }
+    .onAppear {
+      favoriteMessageService.setModelContext(modelContext)
+    }
+    .task {
+      favoriteMessageService.setModelContext(modelContext)
     }
   }
 }

@@ -17,6 +17,7 @@ struct MessageDetailView: View {
   @State private var currentPage: Int = 0
   @Environment(\.modelContext) private var modelContext
   @Query private var preferences: [Preference]
+  @State private var favoriteMessageService = FavoriteMessageService.shared
 
   private var preference: Preference {
     if let existing = preferences.first {
@@ -30,7 +31,7 @@ struct MessageDetailView: View {
 
   private var isFavorite: Bool {
     guard let message = selectedMessage else { return false }
-    return preference.isFavoriteMessage(message.messageId)
+    return message.isFavorite
   }
 
   private var isPatchEmail: Bool {
@@ -76,7 +77,7 @@ struct MessageDetailView: View {
               .lineLimit(2)
             Spacer()
             Button(action: {
-              preference.toggleFavoriteMessage(msg.messageId)
+              favoriteMessageService.toggleFavorite(msg)
               isFavoriteAnimating = true
               DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 isFavoriteAnimating = false
@@ -140,7 +141,10 @@ struct MessageDetailView: View {
 
                     Button("Add") {
                       if !newTag.isEmpty {
-                        preference.addTag(newTag, to: msg.messageId)
+                        favoriteMessageService.addTag(newTag, to: msg.messageId)
+                        if !msg.tags.contains(newTag) {
+                          msg.tags.append(newTag)
+                        }
                         newTag = ""
                       }
                       showingTagInput = false
@@ -152,10 +156,10 @@ struct MessageDetailView: View {
                 .frame(width: 200)
               }
 
-              if !preference.getTags(for: msg.messageId).isEmpty {
+              if !msg.tags.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                   HStack(spacing: 4) {
-                    ForEach(preference.getTags(for: msg.messageId), id: \.self) { tag in
+                    ForEach(msg.tags, id: \.self) { tag in
                       HStack(spacing: 2) {
                         Text(tag)
                           .font(.caption2)
@@ -167,7 +171,8 @@ struct MessageDetailView: View {
                           )
 
                         Button(action: {
-                          preference.removeTag(tag, from: msg.messageId)
+                          favoriteMessageService.removeTag(tag, from: msg.messageId)
+                          msg.tags.removeAll { $0 == tag }
                         }) {
                           Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 10))
@@ -385,13 +390,7 @@ struct MessageDetailView: View {
 
     Task {
       do {
-        var url = message.messageId
-
-        if !url.hasPrefix("http") {
-          let base = LORE_LINUX_BASE_URL.value
-          let relativePath = message.content.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-          url = "\(base)/\(message.mailingList?.name ?? "")/\(relativePath)"
-        }
+        let url = message.messageId
 
         print("Loading HTML from URL: \(url)")
         print("Message content field: \(message.content)")

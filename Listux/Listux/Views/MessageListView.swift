@@ -11,6 +11,7 @@ struct MessageListView: View {
   let isLoading: Bool
   @Environment(\.modelContext) private var modelContext
   @Query private var preferences: [Preference]
+  @State private var favoriteMessageService = FavoriteMessageService.shared
 
   private var preference: Preference {
     if let existing = preferences.first {
@@ -47,17 +48,25 @@ struct MessageListView: View {
         }
       }
     )
+    .onAppear {
+      favoriteMessageService.setModelContext(modelContext)
+    }
+    .task {
+      favoriteMessageService.setModelContext(modelContext)
+    }
   }
 }
 
 struct SimpleMessageRowView: View {
-  let message: Message
+  @ObservedObject var message: Message
   let preference: Preference
   @State private var showingTagInput: Bool = false
   @State private var newTag: String = ""
+  @State private var favoriteMessageService = FavoriteMessageService.shared
+  @Environment(\.modelContext) private var modelContext
 
   private var isFavorite: Bool {
-    preference.isFavoriteMessage(message.messageId)
+    message.isFavorite
   }
 
   var body: some View {
@@ -131,9 +140,10 @@ struct SimpleMessageRowView: View {
           #if os(macOS)
             // Only show tags for favorited messages on macOS
             if isFavorite {
-              ForEach(preference.getTags(for: message.messageId), id: \.self) { tag in
+              ForEach(message.tags, id: \.self) { tag in
                 TagChipView(tag: tag) {
-                  preference.removeTag(tag, from: message.messageId)
+                  favoriteMessageService.removeTag(tag, from: message.messageId)
+                  message.tags.removeAll { $0 == tag }
                 }
               }
             }
@@ -169,7 +179,10 @@ struct SimpleMessageRowView: View {
 
                   Button("Add") {
                     if !newTag.isEmpty {
-                      preference.addTag(newTag, to: message.messageId)
+                      favoriteMessageService.addTag(newTag, to: message.messageId)
+                      if !message.tags.contains(newTag) {
+                        message.tags.append(newTag)
+                      }
                       newTag = ""
                     }
                     showingTagInput = false
@@ -184,7 +197,7 @@ struct SimpleMessageRowView: View {
 
           Button(action: {
             withAnimation(Animation.userPreferenceQuick) {
-              preference.toggleFavoriteMessage(message.messageId)
+              favoriteMessageService.toggleFavorite(message)
             }
           }) {
             Image(systemName: isFavorite ? "star.fill" : "star")
@@ -200,6 +213,12 @@ struct SimpleMessageRowView: View {
       }
     }
     .padding(.vertical, 4)
+    .onAppear {
+      favoriteMessageService.setModelContext(modelContext)
+    }
+    .task {
+      favoriteMessageService.setModelContext(modelContext)
+    }
   }
 }
 

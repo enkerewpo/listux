@@ -1,7 +1,7 @@
 import Foundation
 
 // Non-persistent Message model - only stored in memory
-final class Message: Identifiable, Hashable {
+final class Message: Identifiable, Hashable, ObservableObject {
 
   var id: UUID
   var subject: String
@@ -21,6 +21,10 @@ final class Message: Identifiable, Hashable {
   var rawHtml: String = ""
   var permalink: String = ""
   var rawUrl: String = ""
+  
+  // Favorite and tag properties (synced with persistent storage)
+  @Published var isFavorite: Bool = false
+  @Published var tags: [String] = []
 
   init(
     subject: String, content: String, timestamp: Date, parent: Message? = nil,
@@ -64,6 +68,41 @@ final class Message: Identifiable, Hashable {
 
   func removeParent() {
     parent = nil
+  }
+  
+  // Methods for syncing with persistent storage
+  @MainActor
+  func syncWithPersistentStorage(_ favoriteMessage: FavoriteMessage?) {
+    if let favoriteMessage = favoriteMessage {
+      self.isFavorite = true
+      self.tags = favoriteMessage.tags
+    } else {
+      self.isFavorite = false
+      self.tags = []
+    }
+  }
+  
+  func toFavoriteMessage() -> FavoriteMessage? {
+    guard !messageId.isEmpty && !subject.isEmpty else { 
+      print("Message.toFavoriteMessage: messageId or subject is empty - messageId: '\(messageId)', subject: '\(subject)'")
+      return nil 
+    }
+    
+    print("Message.toFavoriteMessage: Creating favorite message for messageId: \(messageId)")
+    
+    let favoriteMessage = FavoriteMessage()
+    favoriteMessage.messageId = messageId
+    favoriteMessage.subject = subject
+    favoriteMessage.author = author
+    favoriteMessage.timestamp = timestamp
+    favoriteMessage.permalink = permalink
+    favoriteMessage.rawUrl = rawUrl
+    favoriteMessage.tags = tags
+    favoriteMessage.mailingListName = mailingList?.name ?? ""
+    favoriteMessage.seqId = seqId
+    
+    print("Message.toFavoriteMessage: Created favorite message successfully")
+    return favoriteMessage
   }
 }
 

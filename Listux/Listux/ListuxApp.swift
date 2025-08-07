@@ -13,6 +13,7 @@ struct ListuxApp: App {
   var sharedModelContainer: ModelContainer = {
     let schema = Schema([
       Preference.self,
+      FavoriteMessage.self,
     ])
     let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 

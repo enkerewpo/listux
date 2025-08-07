@@ -71,6 +71,7 @@ struct SidebarView: View {
   @FocusState private var isSearchFocused: Bool
   @Environment(\.modelContext) private var modelContext
   @Query private var preferences: [Preference]
+  @State private var favoriteMessageService = FavoriteMessageService.shared
 
   private var preference: Preference {
     if let existing = preferences.first {
@@ -99,8 +100,8 @@ struct SidebarView: View {
   }
 
   private var allTags: [String] {
-    var tags = preference.getAllTags()
-    if !preference.getUntaggedMessages().isEmpty {
+    var tags = favoriteMessageService.getAllTags()
+    if !favoriteMessageService.getUntaggedMessages().isEmpty {
       tags.insert("Untagged", at: 0)
     }
     return tags
@@ -152,6 +153,12 @@ struct SidebarView: View {
     #else
       .background(.ultraThinMaterial)
     #endif
+    .onAppear {
+      favoriteMessageService.setModelContext(modelContext)
+    }
+    .task {
+      favoriteMessageService.setModelContext(modelContext)
+    }
   }
 
   @ViewBuilder
@@ -235,7 +242,7 @@ struct SidebarView: View {
               tag: tag,
               isSelected: selectedTag == tag,
               messageCount: tag == "Untagged"
-                ? preference.getUntaggedMessages().count : preference.getMessagesWithTag(tag).count,
+                ? favoriteMessageService.getUntaggedMessages().count : favoriteMessageService.getMessagesWithTag(tag).count,
               onSelect: {
                 withAnimation(Animation.userPreferenceQuick) {
                   selectedTag = tag

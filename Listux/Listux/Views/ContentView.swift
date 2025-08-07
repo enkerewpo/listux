@@ -30,6 +30,7 @@ struct ContentView: View {
   @Query private var preferences: [Preference]
 
   @State private var settingsManager = SettingsManager.shared
+  @State private var favoriteMessageService = FavoriteMessageService.shared
 
   private var preference: Preference {
     if let existing = preferences.first {
@@ -52,9 +53,9 @@ struct ContentView: View {
 
     let messageIds: [String]
     if tag == "Untagged" {
-      messageIds = preference.getUntaggedMessages()
+      messageIds = favoriteMessageService.getUntaggedMessages()
     } else {
-      messageIds = preference.getMessagesWithTag(tag)
+      messageIds = favoriteMessageService.getMessagesWithTag(tag)
     }
 
     var allMessages: [Message] = []
@@ -91,6 +92,8 @@ struct ContentView: View {
         let result = Parser.parseMsgsFromListPage(from: html, mailingList: list)
         await MainActor.run {
           list.updateOrderedMessages(result.messages)
+          // Sync messages with persistent storage
+          favoriteMessageService.syncMessagesWithPersistentStorage(result.messages)
           messagePageLinks = (result.nextURL, result.prevURL, result.latestURL)
           isLoadingMessages = false
         }
@@ -111,6 +114,8 @@ struct ContentView: View {
         let result = Parser.parseMsgsFromListPage(from: html, mailingList: list)
         await MainActor.run {
           list.updateOrderedMessages(result.messages)
+          // Sync messages with persistent storage
+          favoriteMessageService.syncMessagesWithPersistentStorage(result.messages)
           messagePageLinks = (result.nextURL, result.prevURL, result.latestURL)
           isLoadingMessages = false
         }
@@ -220,6 +225,7 @@ struct ContentView: View {
         }
       }
       .onAppear {
+        favoriteMessageService.setModelContext(modelContext)
         settingsManager.onDataCleared = {
           withAnimation(Animation.userPreference) {
             selectedTag = nil
