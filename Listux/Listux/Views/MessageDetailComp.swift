@@ -31,6 +31,8 @@ struct MessageMetadataView: View {
             Text(recipient)
               .font(.caption)
               .foregroundColor(.primary)
+              .lineLimit(2)
+              .minimumScaleFactor(0.8)
           }
         }
       }
@@ -46,6 +48,8 @@ struct MessageMetadataView: View {
             Text(recipient)
               .font(.caption)
               .foregroundColor(.primary)
+              .lineLimit(2)
+              .minimumScaleFactor(0.8)
           }
         }
       }
@@ -351,21 +355,19 @@ struct GitDiffCard: View {
         .help("Copy Git Diff")
       }
 
-      ScrollView(.horizontal, showsIndicators: false) {
-        VStack(alignment: .leading, spacing: 0) {
-          ForEach(Array(content.components(separatedBy: .newlines).enumerated()), id: \.offset) {
-            index, line in
-            HStack(alignment: .top, spacing: 0) {
-              if isGitSummaryLine(line) {
-                SummaryLineView(line: line)
-              } else {
-                Text(line)
-                  .font(.system(.caption, design: .monospaced))
-                  .foregroundColor(colorForLine(line))
-                  .textSelection(.enabled)
-                  .frame(maxWidth: .infinity, alignment: .leading)
-                  .fixedSize(horizontal: false, vertical: true)
-              }
+      VStack(alignment: .leading, spacing: 0) {
+        ForEach(Array(content.components(separatedBy: .newlines).enumerated()), id: \.offset) {
+          index, line in
+          HStack(alignment: .top, spacing: 0) {
+            if isGitSummaryLine(line) {
+              SummaryLineView(line: line)
+            } else {
+              Text(line)
+                .font(.system(.caption, design: .monospaced))
+                .foregroundColor(colorForLine(line))
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
             }
           }
         }
@@ -424,6 +426,8 @@ struct SummaryLineView: View {
         Text(filename)
           .font(.system(.caption, design: .monospaced))
           .foregroundColor(.secondary)
+          .lineLimit(1)
+          .minimumScaleFactor(0.8)
 
         // Pipe character
         Text("|")
@@ -442,6 +446,8 @@ struct SummaryLineView: View {
         Text(line)
           .font(.system(.caption, design: .monospaced))
           .foregroundColor(.secondary)
+          .lineLimit(1)
+          .minimumScaleFactor(0.8)
       }
     }
     .textSelection(.enabled)
@@ -560,9 +566,13 @@ struct EmailChipView: View {
       if let email = email?.trimmingCharacters(in: .whitespacesAndNewlines), !email.isEmpty {
         Text("\(trimmedName) <\(email)>")
           .font(.caption2)
+          .lineLimit(1)
+          .minimumScaleFactor(0.8)
       } else {
         Text(trimmedName)
           .font(.caption2)
+          .lineLimit(1)
+          .minimumScaleFactor(0.8)
       }
     }
     .padding(.horizontal, 6)
@@ -596,6 +606,8 @@ struct MessageIdChipView: View {
       Text("<\(trimmed)>")
         .font(.caption2)
         .textSelection(.enabled)
+        .lineLimit(1)
+        .minimumScaleFactor(0.8)
     }
     .padding(.horizontal, 6)
     .padding(.vertical, 3)
@@ -727,7 +739,7 @@ struct TokenizedLineView: View {
 
   var body: some View {
     let parts = tokenizeLine(line)
-    ScrollView(.horizontal, showsIndicators: false) {
+    LazyVStack(alignment: .leading, spacing: 2) {
       HStack(alignment: .firstTextBaseline, spacing: 0) {
         ForEach(Array(parts.enumerated()), id: \.offset) { _, part in
           switch part {
@@ -736,6 +748,7 @@ struct TokenizedLineView: View {
               .font(.system(.caption, design: .monospaced))
               .foregroundColor(.primary)
               .textSelection(.enabled)
+              .fixedSize(horizontal: false, vertical: true)
           case .email(let name, let email):
             EmailChipView(name: name, email: email)
               .padding(.horizontal, 2)
@@ -744,7 +757,9 @@ struct TokenizedLineView: View {
               .padding(.horizontal, 2)
           }
         }
+        Spacer(minLength: 0)
       }
+      .fixedSize(horizontal: false, vertical: true)
     }
     .frame(maxWidth: .infinity, alignment: .leading)
   }

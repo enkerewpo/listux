@@ -54,7 +54,8 @@ struct MessageDetailView: View {
             Text(msg.subject)
               .font(.headline)
               .bold()
-              .lineLimit(2)
+              .lineLimit(3)
+              .minimumScaleFactor(0.8)
             Spacer()
             Button(action: {
               favoriteMessageService.toggleFavorite(msg)
@@ -96,37 +97,37 @@ struct MessageDetailView: View {
 
           // Tags section - compact version
           if isFavorite {
-            HStack {
+            VStack(alignment: .leading, spacing: 4) {
               TagAddButton(messageId: msg.messageId)
 
               if !msg.tags.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                  HStack(spacing: 4) {
-                    ForEach(msg.tags, id: \.self) { tag in
-                      HStack(spacing: 2) {
-                        Text(tag)
-                          .font(.caption2)
-                          .padding(.horizontal, 6)
-                          .padding(.vertical, 2)
-                          .background(
-                            RoundedRectangle(cornerRadius: 3)
-                              .fill(Color.blue.opacity(0.2))
-                          )
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 3), spacing: 4) {
+                  ForEach(msg.tags, id: \.self) { tag in
+                    HStack(spacing: 2) {
+                      Text(tag)
+                        .font(.caption2)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(
+                          RoundedRectangle(cornerRadius: 3)
+                            .fill(Color.blue.opacity(0.2))
+                        )
 
-                        Button(action: {
-                          favoriteMessageService.removeTag(tag, from: msg.messageId)
-                          msg.tags.removeAll { $0 == tag }
-                        }) {
-                          Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 10))
-                            .foregroundColor(.red)
-                        }
-                        .buttonStyle(.plain)
+                      Button(action: {
+                        favoriteMessageService.removeTag(tag, from: msg.messageId)
+                        msg.tags.removeAll { $0 == tag }
+                      }) {
+                        Image(systemName: "xmark.circle.fill")
+                          .font(.system(size: 10))
+                          .foregroundColor(.red)
                       }
+                      .buttonStyle(.plain)
                     }
                   }
-                  .padding(.horizontal, 4)
                 }
+                .padding(.horizontal, 4)
               }
             }
           }
