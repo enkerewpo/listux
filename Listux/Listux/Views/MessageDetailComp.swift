@@ -86,33 +86,13 @@ struct MessageMetadataView: View {
 
 struct MessageContentView: View {
   let content: String
-  let showFullContent: Bool
-  let currentPage: Int
-
-  private let maxPreviewLength = 5000
-  private let pageSize = 5000
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
       LazyVStack(alignment: .leading, spacing: 8) {
-        if showFullContent {
-          // Show paginated content
-          PaginatedContentView(content: content, pageSize: pageSize, currentPage: currentPage)
-        } else {
-          ScrollView {
-            // Show preview
-            let previewContent = String(content.prefix(maxPreviewLength))
-            let formattedContent = formatEmailContent(previewContent)
-
-            // Render content with inline git diff cards
-            InlineContentView(content: formattedContent)
-
-            if content.count > maxPreviewLength {
-              Text("... (please click 'Show More' to see the full content)")
-                .font(.caption)
-                .foregroundColor(.secondary)
-            }
-          }
+        ScrollView {
+          let formattedContent = formatEmailContent(content)
+          InlineContentView(content: formattedContent)
         }
       }
     }
@@ -176,9 +156,30 @@ struct InlineContentView: View {
 
     for (index, line) in lines.enumerated() {
       let trimmedLine = line.trimmingCharacters(in: .whitespaces)
+      let isQuoted = isQuotedEmailLine(line)
+
+      if !inGitDiff && !isQuoted && isGitSummaryLine(line) {
+        if !currentRegularLines.isEmpty {
+          sections.append(.regular(currentRegularLines.joined(separator: "\n")))
+          currentRegularLines = []
+        }
+        inGitDiff = true
+        currentGitDiffLines.append(line)
+        continue
+      }
+
+      if !inGitDiff && !isQuoted && trimmedLine.hasPrefix("diff --git") {
+        if !currentRegularLines.isEmpty {
+          sections.append(.regular(currentRegularLines.joined(separator: "\n")))
+          currentRegularLines = []
+        }
+        inGitDiff = true
+        currentGitDiffLines.append(line)
+        continue
+      }
 
       // Check for git diff start pattern: starts with "---" (includes summary)
-      if line.hasPrefix("---") && !inGitDiff {
+      if line.hasPrefix("---") && !inGitDiff && !isQuoted {
         // Look ahead to see if this is a git diff by checking for "diff --git" or "+++" in the next few lines
         var foundGitDiff = false
         for i in 1...5 {  // Check next 5 lines
@@ -226,6 +227,9 @@ struct InlineContentView: View {
     if !currentRegularLines.isEmpty {
       sections.append(.regular(currentRegularLines.joined(separator: "\n")))
     }
+    if inGitDiff && !currentGitDiffLines.isEmpty {
+      sections.append(.gitDiff(currentGitDiffLines.joined(separator: "\n")))
+    }
 
     return sections
   }
@@ -234,6 +238,33 @@ struct InlineContentView: View {
 enum ContentSection {
   case regular(String)
   case gitDiff(String)
+}
+
+private func isGitSummaryLine(_ line: String) -> Bool {
+  if isQuotedEmailLine(line) { return false }
+  let trimmedLine = line.trimmingCharacters(in: .whitespaces)
+  let pattern = #"^(?!>(?:\s*>)*).* \| \d+ [+-]+$"#
+  return (try? NSRegularExpression(pattern: pattern))?.firstMatch(
+    in: trimmedLine, range: NSRange(trimmedLine.startIndex..., in: trimmedLine)) != nil
+}
+
+private func isQuotedEmailLine(_ line: String) -> Bool {
+  let pattern = #"^\s*>(?:\s*>)*"#
+  if let regex = try? NSRegularExpression(pattern: pattern) {
+    let range = NSRange(line.startIndex..., in: line)
+    if regex.firstMatch(in: line, range: range) != nil { return true }
+  }
+  let nbsp = Character("\u{00A0}")
+  var index = line.startIndex
+  func isWs(_ ch: Character) -> Bool { ch == " " || ch == "\t" || ch == nbsp }
+  while index < line.endIndex, isWs(line[index]) { index = line.index(after: index) }
+  var sawGt = false
+  while index < line.endIndex, line[index] == ">" {
+    sawGt = true
+    index = line.index(after: index)
+    while index < line.endIndex, isWs(line[index]) { index = line.index(after: index) }
+  }
+  return sawGt
 }
 
 struct GitDiffCard: View {
@@ -271,7 +302,7 @@ struct GitDiffCard: View {
           ForEach(Array(content.components(separatedBy: .newlines).enumerated()), id: \.offset) {
             index, line in
             HStack(alignment: .top, spacing: 0) {
-              if isSummaryLine(line) {
+              if isGitSummaryLine(line) {
                 SummaryLineView(line: line)
               } else {
                 Text(line)
@@ -293,14 +324,6 @@ struct GitDiffCard: View {
       RoundedRectangle(cornerRadius: 8)
         .stroke(Color.blue.opacity(0.3), lineWidth: 1)
     )
-  }
-
-  private func isSummaryLine(_ line: String) -> Bool {
-    let trimmedLine = line.trimmingCharacters(in: .whitespaces)
-    // Match pattern like "file.c | 5 ++++--" or "file.c | 3 +-"
-    let pattern = #".* \| \d+ [+\-]+$"#
-    return (try? NSRegularExpression(pattern: pattern))?.firstMatch(
-      in: trimmedLine, range: NSRange(trimmedLine.startIndex..., in: trimmedLine)) != nil
   }
 
   private func colorForLine(_ line: String) -> Color {
@@ -384,44 +407,4 @@ struct SummaryLineView: View {
   }
 }
 
-struct PaginatedContentView: View {
-  let content: String
-  let pageSize: Int
-  let currentPage: Int
-
-  private var totalPages: Int {
-    (content.count + pageSize - 1) / pageSize
-  }
-
-  private var currentPageContent: String {
-    let startIndex = content.index(content.startIndex, offsetBy: currentPage * pageSize)
-    let endIndex = content.index(
-      startIndex, offsetBy: min(pageSize, content.count - currentPage * pageSize))
-    return String(content[startIndex..<endIndex])
-  }
-
-  var body: some View {
-    VStack(spacing: 0) {
-      // Scrollable content
-      ScrollView {
-        let formattedContent = formatEmailContent(currentPageContent)
-
-        // Render content with inline git diff cards
-        InlineContentView(content: formattedContent)
-      }
-    }
-  }
-
-  private func formatEmailContent(_ content: String) -> String {
-    // Clean up the content for better display
-    var formatted = content
-
-    // Remove excessive whitespace
-    formatted = formatted.replacingOccurrences(of: "\n\n\n", with: "\n\n")
-
-    // Ensure proper paragraph spacing
-    formatted = formatted.trimmingCharacters(in: .whitespacesAndNewlines)
-
-    return formatted
-  }
-}
+// Removed pagination; full content is rendered directly

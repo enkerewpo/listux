@@ -34,33 +34,14 @@ struct MessageDetailView: View {
   }
 
   private var isPatchEmail: Bool {
-    guard let detail = parsedDetail else { return false }
-    return !detail.diffContent.isEmpty
+    true
   }
 
-  private var hasMultiplePages: Bool {
-    guard let detail = parsedDetail else { return false }
-    if isPatchEmail {
-      return detail.content.count > 5000
-    } else {
-      let lines = detail.content.components(separatedBy: .newlines)
-      return lines.count > 150
-    }
-  }
-
-  private var totalPages: Int {
-    guard let detail = parsedDetail else { return 1 }
-    if isPatchEmail {
-      return (detail.content.count + 5000 - 1) / 5000
-    } else {
-      let lines = detail.content.components(separatedBy: .newlines)
-      return (lines.count + 150 - 1) / 150
-    }
-  }
+  // Pagination removed; full content always rendered
 
   private var availableTabs: [String] {
     guard parsedDetail != nil else { return [] }
-    return ["Metadata", "Content"]
+    return ["Content", "Metadata"]
   }
 
   var body: some View {
@@ -199,47 +180,7 @@ struct MessageDetailView: View {
 
             Spacer()
 
-            // Content controls (only for Content tab)
-            if selectedTab < availableTabs.count && availableTabs[selectedTab] == "Content" {
-              // Show More/Less button
-              if hasMultiplePages {
-                Button(showFullContent ? "Show Less" : "Show More") {
-                  showFullContent.toggle()
-                  currentPage = 0
-                }
-                .buttonStyle(.bordered)
-                .font(.caption2)
-                .controlSize(.small)
-              }
-
-              // Pagination controls (only when showing full content)
-              if showFullContent && totalPages > 1 {
-                Button("←") {
-                  if currentPage > 0 {
-                    currentPage -= 1
-                  }
-                }
-                .disabled(currentPage == 0)
-                .buttonStyle(.bordered)
-                .font(.caption2)
-                .controlSize(.small)
-
-                Text("\(currentPage + 1) / \(totalPages)")
-                  .font(.caption2)
-                  .foregroundColor(.secondary)
-                  .frame(minWidth: 50)
-
-                Button("→") {
-                  if currentPage < totalPages - 1 {
-                    currentPage += 1
-                  }
-                }
-                .disabled(currentPage == totalPages - 1)
-                .buttonStyle(.bordered)
-                .font(.caption2)
-                .controlSize(.small)
-              }
-            }
+            // Content controls removed
           }
           .padding(.horizontal, 12)
           .padding(.vertical, 4)
@@ -270,19 +211,7 @@ struct MessageDetailView: View {
                     case "Metadata":
                       MessageMetadataView(metadata: detail.metadata)
                     case "Content":
-                      // if isPatchEmail {
-                      MessageContentView(
-                        content: detail.content,
-                        showFullContent: showFullContent,
-                        currentPage: currentPage
-                      )
-                    // } else {
-                    //   EmailContentView(
-                    //     content: detail.content,
-                    //     showFullContent: showFullContent,
-                    //     currentPage: currentPage
-                    //   )
-                    // }
+                      MessageContentView(content: detail.content)
                     default:
                       EmptyView()
                     }
@@ -291,16 +220,6 @@ struct MessageDetailView: View {
                   .id("content-top")
                 }
                 .frame(maxWidth: .infinity, maxHeight: geometry.size.height, alignment: .top)
-                .onChange(of: currentPage) { _, _ in
-                  withAnimation(.easeInOut(duration: 0.3)) {
-                    proxy.scrollTo("content-top", anchor: .top)
-                  }
-                }
-                .onChange(of: showFullContent) { _, _ in
-                  withAnimation(.easeInOut(duration: 0.3)) {
-                    proxy.scrollTo("content-top", anchor: .top)
-                  }
-                }
                 .onChange(of: selectedTab) { _, _ in
                   // Reset content state when switching tabs
                   showFullContent = false

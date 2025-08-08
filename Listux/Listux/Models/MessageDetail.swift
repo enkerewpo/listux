@@ -77,18 +77,17 @@ struct MessageMetadata {
 struct ParsedMessageDetail {
   let metadata: MessageMetadata
   let content: String
-  let diffContent: [MessageDiff]
-  let threadNavigation: ThreadNavigation?
+  // let diffContent: [MessageDiff]
+  // let threadNavigation: ThreadNavigation?
   let rawHtml: String
 
   init(
-    metadata: MessageMetadata, content: String, diffContent: [MessageDiff] = [],
-    threadNavigation: ThreadNavigation? = nil, rawHtml: String = ""
+    metadata: MessageMetadata, content: String, rawHtml: String = ""
   ) {
     self.metadata = metadata
     self.content = content
-    self.diffContent = diffContent
-    self.threadNavigation = threadNavigation
+    // self.diffContent = diffContent
+    // self.threadNavigation = threadNavigation
     self.rawHtml = rawHtml
   }
 }

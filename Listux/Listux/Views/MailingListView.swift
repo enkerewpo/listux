@@ -232,7 +232,7 @@ struct MailingListMessageView: View {
         from: html, mailingList: mailingList, startingSeqId: startingSeqId)
 
       await MainActor.run {
-        let oldCount = messages.count
+        let _oldCount = messages.count
         let existingIds = Set(messages.map { $0.messageId })
         var messagesToAdd: [Message] = []
 
