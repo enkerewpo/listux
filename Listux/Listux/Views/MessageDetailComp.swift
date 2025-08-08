@@ -1,3 +1,4 @@
+import CryptoKit
 import SwiftUI
 
 struct MessageMetadataView: View {
@@ -173,16 +174,21 @@ struct InlineContentView: View {
           continue
         }
         if trimmedLine.lowercased().hasPrefix("subject:") {
-          let value = String(trimmedLine.dropFirst("subject:".count)).trimmingCharacters(in: .whitespaces)
+          let value = String(trimmedLine.dropFirst("subject:".count)).trimmingCharacters(
+            in: .whitespaces)
           parsedHeader?.subject = value
         }
         if trimmedLine.lowercased().hasPrefix("date:") {
-          let value = String(trimmedLine.dropFirst("date:".count)).trimmingCharacters(in: .whitespaces)
+          let value = String(trimmedLine.dropFirst("date:".count)).trimmingCharacters(
+            in: .whitespaces)
           parsedHeader?.dateText = value
         }
         if trimmedLine.lowercased().hasPrefix("from:") {
-          let value = String(trimmedLine.dropFirst("from:".count)).trimmingCharacters(in: .whitespaces)
-          if let emailRangeStart = value.firstIndex(of: "<"), let emailRangeEnd = value.firstIndex(of: ">"), emailRangeStart < emailRangeEnd {
+          let value = String(trimmedLine.dropFirst("from:".count)).trimmingCharacters(
+            in: .whitespaces)
+          if let emailRangeStart = value.firstIndex(of: "<"),
+            let emailRangeEnd = value.firstIndex(of: ">"), emailRangeStart < emailRangeEnd
+          {
             let name = String(value[..<emailRangeStart]).trimmingCharacters(in: .whitespaces)
             let email = String(value[value.index(after: emailRangeStart)..<emailRangeEnd])
             parsedHeader?.fromName = name.isEmpty ? email : name
@@ -465,7 +471,8 @@ struct SubjectHeaderInfo: Equatable {
   var messageId: String? = nil
   var inReplyToIds: [String] = []
   var hasAnyField: Bool {
-    (subject != nil) || (dateText != nil) || (fromName != nil) || (messageId != nil) || !inReplyToIds.isEmpty
+    (subject != nil) || (dateText != nil) || (fromName != nil) || (messageId != nil)
+      || !inReplyToIds.isEmpty
   }
 }
 
@@ -504,14 +511,18 @@ struct SubjectDateHeaderCard: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
-      if let subject = header.subject, !subject.isEmpty {
+      if let subject = header.subject?.trimmingCharacters(in: .whitespacesAndNewlines),
+        !subject.isEmpty
+      {
         Text(subject)
           .font(.subheadline)
           .fontWeight(.semibold)
           .foregroundColor(.primary)
           .textSelection(.enabled)
       }
-      if let dateText = header.dateText, !dateText.isEmpty {
+      if let dateText = header.dateText?.trimmingCharacters(in: .whitespacesAndNewlines),
+        !dateText.isEmpty
+      {
         Text(dateText)
           .font(.caption)
           .foregroundColor(.secondary)
@@ -539,16 +550,18 @@ struct SubjectDateHeaderCard: View {
 struct EmailChipView: View {
   let name: String
   let email: String?
+  @State private var showPopover: Bool = false
 
   var body: some View {
     HStack(spacing: 4) {
       Image(systemName: "person.crop.circle")
         .font(.system(size: 10))
-      if let email = email, !email.isEmpty {
-        Text("\(name) <\(email)>")
+      let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+      if let email = email?.trimmingCharacters(in: .whitespacesAndNewlines), !email.isEmpty {
+        Text("\(trimmedName) <\(email)>")
           .font(.caption2)
       } else {
-        Text(name)
+        Text(trimmedName)
           .font(.caption2)
       }
     }
@@ -560,6 +573,15 @@ struct EmailChipView: View {
         .stroke(Color.green.opacity(0.3), lineWidth: 1)
     )
     .cornerRadius(4)
+    .onTapGesture { showPopover = true }
+    .popover(isPresented: $showPopover, arrowEdge: .bottom) {
+      AuthorInfoPopupView(
+        name: name.trimmingCharacters(in: .whitespacesAndNewlines),
+        email: (email ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+      )
+      .frame(minWidth: 260)
+      .padding()
+    }
   }
 }
 
@@ -570,7 +592,8 @@ struct MessageIdChipView: View {
     HStack(spacing: 4) {
       Image(systemName: "number")
         .font(.system(size: 10))
-      Text("<\(id)>")
+      let trimmed = id.trimmingCharacters(in: .whitespacesAndNewlines)
+      Text("<\(trimmed)>")
         .font(.caption2)
         .textSelection(.enabled)
     }
@@ -618,16 +641,18 @@ private func splitTrailingName(from precedingText: String) -> (prefix: String, n
   // Remove trailing spaces
   while text.last == " " { text.removeLast() }
   guard let colonIndex = text.lastIndex(of: ":") else {
-    // No colon; try to take trailing word sequence as name if it has at least one letter
+    // No colon; attempt trailing 1..3 words as a name if valid
     let components = text.split(separator: " ")
     if components.isEmpty { return nil }
-    let nameStartCount = min(components.count, 5) // avoid consuming entire line
-    let nameComponents = components.suffix(nameStartCount)
-    let name = nameComponents.joined(separator: " ")
-    if name.range(of: "[A-Za-z]", options: .regularExpression) != nil {
-      let prefixLen = text.count - name.count
-      let prefix = String(text.prefix(prefixLen))
-      return (prefix: prefix, name: name)
+    let maxCount = min(3, components.count)
+    for count in stride(from: maxCount, through: 1, by: -1) {
+      let nameComponents = components.suffix(count)
+      let candidate = nameComponents.joined(separator: " ")
+      if isValidAuthorName(candidate) {
+        let prefixLen = text.count - candidate.count
+        let prefix = String(text.prefix(prefixLen))
+        return (prefix: prefix, name: candidate)
+      }
     }
     return nil
   }
@@ -635,7 +660,10 @@ private func splitTrailingName(from precedingText: String) -> (prefix: String, n
   let namePart = text[afterColon...].trimmingCharacters(in: .whitespaces)
   if namePart.isEmpty { return nil }
   let prefix = String(text[..<afterColon]) + " "
-  return (prefix: prefix, name: namePart)
+  if isValidAuthorName(namePart) {
+    return (prefix: prefix, name: namePart)
+  }
+  return nil
 }
 
 private func tokenizeLine(_ line: String) -> [LineToken] {
@@ -647,12 +675,14 @@ private func tokenizeLine(_ line: String) -> [LineToken] {
     return [.text(line)]
   }
   var lastIndex = 0
-  let matches = regex.matches(in: line, options: [], range: NSRange(location: 0, length: nsLine.length))
+  let matches = regex.matches(
+    in: line, options: [], range: NSRange(location: 0, length: nsLine.length))
   let midContext = isMessageIdContext(line)
   for match in matches {
     let range = match.range
     if range.location > lastIndex {
-      let textSeg = nsLine.substring(with: NSRange(location: lastIndex, length: range.location - lastIndex))
+      let textSeg = nsLine.substring(
+        with: NSRange(location: lastIndex, length: range.location - lastIndex))
       tokens.append(.text(textSeg))
     }
     let innerRange = match.range(at: 1)
@@ -668,7 +698,12 @@ private func tokenizeLine(_ line: String) -> [LineToken] {
           // Replace last text with its prefix
           _ = tokens.popLast()
           if !split.prefix.isEmpty { tokens.append(.text(split.prefix)) }
-          tokens.append(.email(name: split.name, email: inner))
+          let authorName = split.name.trimmingCharacters(in: .whitespaces)
+          if isValidAuthorName(authorName) {
+            tokens.append(.email(name: authorName, email: inner))
+          } else {
+            tokens.append(.text("<" + inner + ">"))
+          }
         } else {
           tokens.append(.text("<" + inner + ">"))
         }
@@ -712,5 +747,72 @@ struct TokenizedLineView: View {
       }
     }
     .frame(maxWidth: .infinity, alignment: .leading)
+  }
+}
+
+// MARK: - Author info popover and Gravatar
+
+private func isValidAuthorName(_ name: String) -> Bool {
+  let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+  if trimmed.isEmpty { return false }
+  let words = trimmed.split(separator: " ")
+  if words.isEmpty || words.count > 3 { return false }
+  let letters = CharacterSet.letters
+  for w in words {
+    for scalar in w.unicodeScalars {
+      if !letters.contains(scalar) { return false }
+    }
+  }
+  return true
+}
+
+private func md5Hex(_ string: String) -> String {
+  let lower = string.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+  let digest = Insecure.MD5.hash(data: Data(lower.utf8))
+  return digest.map { String(format: "%02x", $0) }.joined()
+}
+
+private func gravatarURL(for email: String, size: Int = 128) -> URL? {
+  guard !email.isEmpty else { return nil }
+  let hash = md5Hex(email)
+  return URL(string: "https://www.gravatar.com/avatar/\(hash)?s=\(size)&d=identicon")
+}
+
+struct AuthorInfoPopupView: View {
+  let name: String
+  let email: String
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      HStack(spacing: 12) {
+        if let url = gravatarURL(for: email) {
+          AsyncImage(url: url) { phase in
+            switch phase {
+            case .empty:
+              ProgressView().scaleEffect(0.7)
+            case .success(let image):
+              image.resizable().aspectRatio(contentMode: .fill)
+                .frame(width: 64, height: 64)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            case .failure:
+              Image(systemName: "person.crop.square").resizable()
+                .frame(width: 64, height: 64)
+                .foregroundColor(.secondary)
+            @unknown default:
+              EmptyView()
+            }
+          }
+        } else {
+          Image(systemName: "person.crop.square").resizable()
+            .frame(width: 64, height: 64)
+            .foregroundColor(.secondary)
+        }
+        VStack(alignment: .leading, spacing: 4) {
+          Text(name).font(.headline)
+          Text(email).font(.caption).foregroundColor(.secondary)
+        }
+        Spacer()
+      }
+    }
   }
 }

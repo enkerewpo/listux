@@ -151,8 +151,6 @@ class MessageDetailParser {
     )
   }
 
-  
-
   private static func parseEmailList(_ emailString: String) -> [String] {
     return
       emailString
