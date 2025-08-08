@@ -131,7 +131,7 @@ struct MessageListView: View {
           Divider()
           
           // 分页导航
-          HStack(spacing: 16) {
+          HStack(spacing: 12) {
             // 页码信息
             VStack(alignment: .leading, spacing: 1) {
               Text("Page \(pageNumber)")
@@ -144,13 +144,22 @@ struct MessageListView: View {
                   .foregroundColor(.secondary)
               }
             }
+            .frame(minWidth: 60)
             
             Spacer()
             
             // 消息计数
-            Text("\(messages.count) messages")
-              .font(.system(size: 13))
-              .foregroundColor(.secondary)
+            HStack(spacing: 4) {
+              Text("\(messages.count)")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+              
+              Image(systemName: "envelope")
+                .font(.system(size: 12))
+                .foregroundColor(.secondary)
+            }
             
             // 分页控制按钮
             HStack(spacing: 8) {
@@ -162,12 +171,15 @@ struct MessageListView: View {
                   HStack(spacing: 4) {
                     Image(systemName: "chevron.up")
                       .font(.system(size: 11, weight: .medium))
-                    Text("Previous")
-                      .font(.system(size: 11, weight: .medium))
+                    // Text("Previous")
+                    //   .font(.system(size: 11, weight: .medium))
+                    //   .lineLimit(1)
+                    //   .minimumScaleFactor(0.8)
                   }
                   .foregroundColor(.accentColor)
-                  .padding(.horizontal, 10)
+                  .padding(.horizontal, 6)
                   .padding(.vertical, 6)
+                  // .frame(minWidth: 70)
                   .background(
                     RoundedRectangle(cornerRadius: 6)
                       .fill(Color.accentColor.opacity(0.1))
@@ -193,10 +205,13 @@ struct MessageListView: View {
                       .font(.system(size: 11, weight: .medium))
                     Text("Latest")
                       .font(.system(size: 11, weight: .medium))
+                      .lineLimit(1)
+                      .minimumScaleFactor(0.8)
                   }
                   .foregroundColor(.orange)
-                  .padding(.horizontal, 10)
+                  .padding(.horizontal, 12)
                   .padding(.vertical, 6)
+                  .frame(minWidth: 70)
                   .background(
                     RoundedRectangle(cornerRadius: 6)
                       .fill(Color.orange.opacity(0.1))
@@ -220,12 +235,15 @@ struct MessageListView: View {
                   HStack(spacing: 4) {
                     Image(systemName: "chevron.down")
                       .font(.system(size: 11, weight: .medium))
-                    Text("Next")
-                      .font(.system(size: 11, weight: .medium))
+                    // Text("Next")
+                    //   .font(.system(size: 11, weight: .medium))
+                    //   .lineLimit(1)
+                    //   .minimumScaleFactor(0.8)
                   }
                   .foregroundColor(.accentColor)
-                  .padding(.horizontal, 10)
+                  .padding(.horizontal, 6)
                   .padding(.vertical, 6)
+                  // .frame(minWidth: 70)
                   .background(
                     RoundedRectangle(cornerRadius: 6)
                       .fill(Color.accentColor.opacity(0.1))
@@ -242,7 +260,7 @@ struct MessageListView: View {
               }
             }
           }
-          .padding(.horizontal, 16)
+          .padding(.horizontal, 12)
           .padding(.vertical, 12)
           .background(
             Group {

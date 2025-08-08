@@ -734,19 +734,103 @@ private func tokenizeLine(_ line: String) -> [LineToken] {
   return tokens
 }
 
+// MARK: - Quote level detection and color handling
+
+private func getQuoteLevel(_ line: String) -> Int {
+  let trimmedLine = line.trimmingCharacters(in: .whitespaces)
+  var level = 0
+  var index = trimmedLine.startIndex
+  
+  while index < trimmedLine.endIndex {
+    if trimmedLine[index] == ">" {
+      level += 1
+      index = trimmedLine.index(after: index)
+      // Skip any spaces after the quote marker
+      while index < trimmedLine.endIndex && trimmedLine[index] == " " {
+        index = trimmedLine.index(after: index)
+      }
+    } else {
+      break
+    }
+  }
+  
+  return level
+}
+
+private func colorForQuoteLevel(_ level: Int) -> Color {
+  switch level {
+  case 0:
+    return .primary
+  case 1:
+    return .secondary
+  case 2:
+    #if os(macOS)
+      return Color(NSColor.controlTextColor).opacity(0.7)
+    #else
+      return Color(.systemGray3)
+    #endif
+  case 3:
+    #if os(macOS)
+      return Color(NSColor.controlTextColor).opacity(0.5)
+    #else
+      return Color(.systemGray4)
+    #endif
+  case 4:
+    #if os(macOS)
+      return Color(NSColor.controlTextColor).opacity(0.3)
+    #else
+      return Color(.systemGray5)
+    #endif
+  default:
+    // For deeper levels, use progressively lighter colors
+    let alpha = max(0.3, 1.0 - Double(level - 4) * 0.1)
+    #if os(macOS)
+      return Color(NSColor.controlTextColor).opacity(alpha * 0.3)
+    #else
+      return Color(.systemGray6).opacity(alpha)
+    #endif
+  }
+}
+
+private func splitQuotePrefix(_ line: String) -> (prefix: String, content: String) {
+  let trimmedLine = line.trimmingCharacters(in: .whitespaces)
+  var index = trimmedLine.startIndex
+  var quotePrefix = ""
+  
+  while index < trimmedLine.endIndex {
+    if trimmedLine[index] == ">" {
+      quotePrefix += ">"
+      index = trimmedLine.index(after: index)
+      // Skip any spaces after the quote marker
+      while index < trimmedLine.endIndex && trimmedLine[index] == " " {
+        quotePrefix += " "
+        index = trimmedLine.index(after: index)
+      }
+    } else {
+      break
+    }
+  }
+  
+  let content = String(trimmedLine[index...])
+  return (prefix: quotePrefix, content: content)
+}
+
 struct TokenizedLineView: View {
   let line: String
 
   var body: some View {
-    let parts = tokenizeLine(line)
+    let quoteLevel = getQuoteLevel(line)
+    let textColor = colorForQuoteLevel(quoteLevel)
+    
     LazyVStack(alignment: .leading, spacing: 2) {
       HStack(alignment: .firstTextBaseline, spacing: 0) {
+        let parts = tokenizeLine(line)
         ForEach(Array(parts.enumerated()), id: \.offset) { _, part in
           switch part {
           case .text(let s):
             Text(s)
               .font(.system(.caption, design: .monospaced))
-              .foregroundColor(.primary)
+              .foregroundColor(textColor)
               .textSelection(.enabled)
               .fixedSize(horizontal: false, vertical: true)
           case .email(let name, let email):
@@ -757,6 +841,7 @@ struct TokenizedLineView: View {
               .padding(.horizontal, 2)
           }
         }
+        
         Spacer(minLength: 0)
       }
       .fixedSize(horizontal: false, vertical: true)
