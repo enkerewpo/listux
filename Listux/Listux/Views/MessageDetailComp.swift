@@ -270,6 +270,14 @@ struct InlineContentView: View {
         continue
       }
 
+      // if this line contains "other threads" then we stop adding diff contents
+      if inGitDiff && trimmedLine.contains("other threads") {
+        inGitDiff = false
+        sections.append(.gitDiff(currentGitDiffLines.joined(separator: "\n")))
+        currentGitDiffLines = []
+        continue
+      }
+
       if inGitDiff {
         currentGitDiffLines.append(line)
       } else {
@@ -762,33 +770,15 @@ private func colorForQuoteLevel(_ level: Int) -> Color {
   case 0:
     return .primary
   case 1:
-    return .secondary
+    return .blue
   case 2:
-    #if os(macOS)
-      return Color(NSColor.controlTextColor).opacity(0.7)
-    #else
-      return Color(.systemGray3)
-    #endif
+    return .green
   case 3:
-    #if os(macOS)
-      return Color(NSColor.controlTextColor).opacity(0.5)
-    #else
-      return Color(.systemGray4)
-    #endif
+    return .orange
   case 4:
-    #if os(macOS)
-      return Color(NSColor.controlTextColor).opacity(0.3)
-    #else
-      return Color(.systemGray5)
-    #endif
+    return .purple
   default:
-    // For deeper levels, use progressively lighter colors
-    let alpha = max(0.3, 1.0 - Double(level - 4) * 0.1)
-    #if os(macOS)
-      return Color(NSColor.controlTextColor).opacity(alpha * 0.3)
-    #else
-      return Color(.systemGray6).opacity(alpha)
-    #endif
+    return .red
   }
 }
 
