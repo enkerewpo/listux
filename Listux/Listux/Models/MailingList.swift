@@ -111,4 +111,37 @@ final class MailingList: Identifiable, Equatable, Hashable, ObservableObject {
       print("  No new messages to add")
     }
   }
+
+  // Method to insert new messages at the beginning (for previous page navigation)
+  func insertOrderedMessages(_ newMessages: [Message], at index: Int) {
+    print("Inserting ordered messages for '\(name)': \(newMessages.count) new messages at index \(index)")
+    print("Current messages count: \(messages.count)")
+    print("Current orderedMessageIds count: \(orderedMessageIds.count)")
+
+    let existingIds = Set(messages.map { $0.messageId })
+    print("Existing message IDs: \(existingIds.count)")
+
+    var messagesToAdd: [Message] = []
+
+    for message in newMessages {
+      print("Checking message: \(message.messageId) - \(message.subject)")
+      if !existingIds.contains(message.messageId) {
+        messagesToAdd.append(message)
+        print("  [\(messagesToAdd.count-1)] SeqID: \(message.seqId), Subject: \(message.subject)")
+      } else {
+        print("  Skipping duplicate message: \(message.messageId)")
+      }
+    }
+
+    if !messagesToAdd.isEmpty {
+      // Insert new messages at the beginning
+      self.messages.insert(contentsOf: messagesToAdd, at: 0)
+      self.orderedMessageIds.insert(contentsOf: messagesToAdd.map { $0.messageId }, at: 0)
+      print("  Total messages after insert: \(self.messages.count)")
+      print("  Total orderedMessageIds after insert: \(self.orderedMessageIds.count)")
+      print("  First few orderedMessageIds: \(self.orderedMessageIds.prefix(5))")
+    } else {
+      print("  No new messages to add")
+    }
+  }
 }

@@ -65,7 +65,13 @@ struct FavoritesMessageView: View {
         isLoading: isLoading,
         onLoadMore: nil,
         hasReachedEnd: true,
-        selectedMessage: $selectedMessage
+        selectedMessage: $selectedMessage,
+        nextURL: nil,
+        prevURL: nil,
+        latestURL: nil,
+        onLoadPrev: nil,
+        onLoadLatest: nil,
+        pageNumber: .constant(1)
       )
       .onAppear {
         favoriteMessageService.setModelContext(modelContext)

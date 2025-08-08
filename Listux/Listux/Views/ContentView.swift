@@ -149,18 +149,15 @@ struct ContentView: View {
         from: html, mailingList: list, startingSeqId: startingSeqId)
 
       await MainActor.run {
-        let oldCount = list.orderedMessages.count
-        print("ContentView: Before append - \(oldCount) messages")
-        print("ContentView: Parsed \(result.messages.count) messages from HTML")
-        print("ContentView: First few parsed messages:")
-        for (i, msg) in result.messages.prefix(3).enumerated() {
-          print("  [\(i)] SeqID: \(msg.seqId), Subject: \(msg.subject)")
-        }
-        list.appendOrderedMessages(result.messages)
-        print("ContentView: After append - \(list.orderedMessages.count) messages")
+        // 替换消息内容而不是追加
+        list.updateOrderedMessages(result.messages)
+        print("ContentView: Replaced with \(result.messages.count) messages")
         messagePageLinks = (result.nextURL, result.prevURL, result.latestURL)
         hasReachedEndMessages = result.nextURL == nil
         isLoadingMoreMessages = false
+        
+        // 更新页码
+        currentPage += 1
 
         // Force UI update by triggering objectWillChange
         list.objectWillChange.send()
@@ -169,13 +166,125 @@ struct ContentView: View {
         uiUpdateTrigger.toggle()
 
         print(
-          "ContentView: Loaded \(result.messages.count) more messages (total: \(list.orderedMessages.count)), hasReachedEnd: \(hasReachedEndMessages), nextURL: \(result.nextURL ?? "nil")"
+          "ContentView: Loaded \(result.messages.count) messages for page \(currentPage), hasReachedEnd: \(hasReachedEndMessages), nextURL: \(result.nextURL ?? "nil")"
         )
       }
     } catch {
       await MainActor.run {
         isLoadingMoreMessages = false
         print("ContentView: Failed to load more messages: \(error)")
+      }
+    }
+  }
+
+  private func loadPrevMessages() async {
+    guard let list = selectedList, let prevURL = messagePageLinks.prev, !isLoadingMoreMessages else {
+      print(
+        "ContentView: Skipping loadPrevMessages - selectedList: \(selectedList != nil), prevURL: \(messagePageLinks.prev != nil), isLoadingMore: \(isLoadingMoreMessages)"
+      )
+      return
+    }
+
+    isLoadingMoreMessages = true
+    print("ContentView: Loading previous messages from \(prevURL)")
+
+    do {
+      let fullURL: String
+      if prevURL.hasPrefix("http") {
+        fullURL = prevURL
+      } else if prevURL.hasPrefix("/") {
+        // Absolute path from root
+        fullURL = "\(LORE_LINUX_BASE_URL.value)\(prevURL)"
+      } else {
+        // Relative path, append to current list URL
+        fullURL = "\(LORE_LINUX_BASE_URL.value)/\(list.name)/\(prevURL)"
+      }
+
+      print("ContentView: Fetching from full URL: \(fullURL)")
+      let html = try await NetworkService.shared.fetchURL(fullURL)
+
+      // Calculate starting seqId based on existing messages
+      let startingSeqId = list.orderedMessages.isEmpty ? 0 : (list.orderedMessages.map { $0.seqId }.min() ?? 0) - 1
+      let result = Parser.parseMsgsFromListPage(
+        from: html, mailingList: list, startingSeqId: startingSeqId)
+
+      await MainActor.run {
+        // 替换消息内容
+        list.updateOrderedMessages(result.messages)
+        messagePageLinks = (result.nextURL, result.prevURL, result.latestURL)
+        hasReachedEndMessages = result.nextURL == nil
+        isLoadingMoreMessages = false
+        
+        // 更新页码
+        currentPage = max(1, currentPage - 1)
+
+        // Force UI update
+        list.objectWillChange.send()
+        uiUpdateTrigger.toggle()
+
+        print(
+          "ContentView: Loaded \(result.messages.count) messages for page \(currentPage), hasReachedEnd: \(hasReachedEndMessages), prevURL: \(result.prevURL ?? "nil")"
+        )
+      }
+    } catch {
+      await MainActor.run {
+        isLoadingMoreMessages = false
+        print("ContentView: Failed to load previous messages: \(error)")
+      }
+    }
+  }
+
+  private func loadLatestMessages() async {
+    guard let list = selectedList, let latestURL = messagePageLinks.latest, !isLoadingMoreMessages else {
+      print(
+        "ContentView: Skipping loadLatestMessages - selectedList: \(selectedList != nil), latestURL: \(messagePageLinks.latest != nil), isLoadingMore: \(isLoadingMoreMessages)"
+      )
+      return
+    }
+
+    isLoadingMoreMessages = true
+    print("ContentView: Loading latest messages from \(latestURL)")
+
+    do {
+      let fullURL: String
+      if latestURL.hasPrefix("http") {
+        fullURL = latestURL
+      } else if latestURL.hasPrefix("/") {
+        // Absolute path from root
+        fullURL = "\(LORE_LINUX_BASE_URL.value)\(latestURL)"
+      } else {
+        // Relative path, append to current list URL
+        fullURL = "\(LORE_LINUX_BASE_URL.value)/\(list.name)/\(latestURL)"
+      }
+
+      print("ContentView: Fetching from full URL: \(fullURL)")
+      let html = try await NetworkService.shared.fetchURL(fullURL)
+
+      let result = Parser.parseMsgsFromListPage(
+        from: html, mailingList: list, startingSeqId: 0)
+
+      await MainActor.run {
+        // Replace all messages with latest ones
+        list.updateOrderedMessages(result.messages)
+        messagePageLinks = (result.nextURL, result.prevURL, result.latestURL)
+        hasReachedEndMessages = result.nextURL == nil
+        isLoadingMoreMessages = false
+        
+        // 重置页码到第一页
+        currentPage = 1
+
+        // Force UI update
+        list.objectWillChange.send()
+        uiUpdateTrigger.toggle()
+
+        print(
+          "ContentView: Loaded \(result.messages.count) latest messages (page 1), hasReachedEnd: \(hasReachedEndMessages), nextURL: \(result.nextURL ?? "nil")"
+        )
+      }
+    } catch {
+      await MainActor.run {
+        isLoadingMoreMessages = false
+        print("ContentView: Failed to load latest messages: \(error)")
       }
     }
   }
@@ -282,7 +391,17 @@ struct ContentView: View {
                 await loadMoreMessages()
               },
               hasReachedEnd: hasReachedEndMessages,
-              selectedMessage: $selectedMessage
+              selectedMessage: $selectedMessage,
+              nextURL: messagePageLinks.next,
+              prevURL: messagePageLinks.prev,
+              latestURL: messagePageLinks.latest,
+              onLoadPrev: {
+                await loadPrevMessages()
+              },
+              onLoadLatest: {
+                await loadLatestMessages()
+              },
+              pageNumber: $currentPage
             )
             .id(uiUpdateTrigger)  // Force view refresh when trigger changes
             .frame(

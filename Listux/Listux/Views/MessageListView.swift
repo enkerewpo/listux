@@ -21,6 +21,20 @@ struct MessageListView: View {
   @State private var favoriteMessageService = FavoriteMessageService.shared
   @State private var isLoadingMore: Bool = false
   @State private var lastMessageIdBeforeLoad: String? = nil
+  
+  // 分页状态
+  @State private var currentPage: Int = 1
+  @State private var totalPages: Int = 1
+  @State private var pageSize: Int = 50
+  @State private var showPageInfo: Bool = false
+  
+  // 分页URL状态 - 从外部传入
+  let nextURL: String?
+  let prevURL: String?
+  let latestURL: String?
+  let onLoadPrev: (() async -> Void)?
+  let onLoadLatest: (() async -> Void)?
+  @Binding var pageNumber: Int
 
   private var preference: Preference {
     if let existing = preferences.first {
@@ -52,7 +66,7 @@ struct MessageListView: View {
   }
 
   private var messageListContent: some View {
-    LazyVStack(spacing: 0) {
+    LazyVStack(spacing: 2) { // 减少间距以容纳两行标题
       // Show initial state message when no messages
       if messages.isEmpty && !isLoading {
         VStack(spacing: 12) {
@@ -93,44 +107,6 @@ struct MessageListView: View {
             Spacer()
           }
         }
-
-        // Load Next Page button - only show if not reached end
-        if !messages.isEmpty && !hasReachedEnd {
-          Button(action: {
-            print("MessageListView: Load Next Page button tapped")
-            // Record the last message ID before loading
-            if let lastMessage = sortedMessages.last {
-              lastMessageIdBeforeLoad = lastMessage.messageId
-              print("MessageListView: Recording last message ID: \(lastMessage.messageId)")
-              print("MessageListView: Last message subject: \(lastMessage.subject)")
-            } else {
-              print("MessageListView: No last message found")
-            }
-            loadMoreMessages()
-          }) {
-            HStack(spacing: 6) {
-              Image(systemName: "arrow.down")
-                .font(.system(size: 12))
-              Text("Load Next Page")
-                .font(.system(size: 12))
-            }
-            .foregroundColor(.secondary)
-            .padding(.vertical, 8)
-            .padding(.horizontal, 12)
-            .background(
-              RoundedRectangle(cornerRadius: 6)
-                .fill(Color.secondary.opacity(0.1))
-            )
-          }
-          .buttonStyle(.plain)
-          .padding(.top, 8)
-          .padding(.bottom, 16)
-          .disabled(isLoadingMore)
-          .opacity(isLoadingMore ? 0.5 : 1.0)
-          .onAppear {
-            print("MessageListView: Load Next Page button appeared!")
-          }
-        }
       }
     }
     .padding(.leading, 8)
@@ -148,35 +124,176 @@ struct MessageListView: View {
       "MessageListView body recalculated for '\(title)' with \(messageCount) messages, onLoadMore: \(onLoadMore != nil)"
     )
 
-    return ScrollViewReader { proxy in
-      ScrollView {
-        messageListContent
-      }
-      .onChange(of: messages.count) { oldCount, newCount in
-        // When new messages are added, scroll to the last message from previous page
-        if newCount > oldCount, let lastMessageId = lastMessageIdBeforeLoad {
-          print("MessageListView: Scrolling to last message from previous page: \(lastMessageId)")
-          print("MessageListView: Old count: \(oldCount), New count: \(newCount)")
-          print(
-            "MessageListView: Current messages: \(sortedMessages.map { $0.messageId }.suffix(5))")
-
-          // Wait longer for UI to update completely
-          DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            print("MessageListView: Attempting to scroll to: \(lastMessageId)")
-            withAnimation(.easeInOut(duration: 0.3)) {
-              proxy.scrollTo(lastMessageId, anchor: .bottom)
+    return VStack(spacing: 0) {
+      // 固定的分页工具栏
+      if !messages.isEmpty && showPageInfo {
+        VStack(spacing: 0) {
+          Divider()
+          
+          // 分页导航
+          HStack(spacing: 16) {
+            // 页码信息
+            VStack(alignment: .leading, spacing: 1) {
+              Text("Page \(pageNumber)")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(.primary)
+              
+              if totalPages > 1 {
+                Text("of \(totalPages)")
+                  .font(.system(size: 11))
+                  .foregroundColor(.secondary)
+              }
+            }
+            
+            Spacer()
+            
+            // 消息计数
+            Text("\(messages.count) messages")
+              .font(.system(size: 13))
+              .foregroundColor(.secondary)
+            
+            // 分页控制按钮
+            HStack(spacing: 8) {
+              // 向前导航按钮
+              if prevURL != nil && onLoadPrev != nil {
+                Button(action: {
+                  loadPrevMessages()
+                }) {
+                  HStack(spacing: 4) {
+                    Image(systemName: "chevron.up")
+                      .font(.system(size: 11, weight: .medium))
+                    Text("Previous")
+                      .font(.system(size: 11, weight: .medium))
+                  }
+                  .foregroundColor(.accentColor)
+                  .padding(.horizontal, 10)
+                  .padding(.vertical, 6)
+                  .background(
+                    RoundedRectangle(cornerRadius: 6)
+                      .fill(Color.accentColor.opacity(0.1))
+                  )
+                }
+                .buttonStyle(.plain)
+                .disabled(isLoadingMore)
+                .opacity(isLoadingMore ? 0.5 : 1.0)
+                #if os(macOS)
+                .onHover { hovering in
+                  // macOS hover effect
+                }
+                #endif
+              }
+              
+              // 跳转到最新页面按钮
+              if latestURL != nil && onLoadLatest != nil {
+                Button(action: {
+                  loadLatestMessages()
+                }) {
+                  HStack(spacing: 4) {
+                    Image(systemName: "arrow.up.to.line")
+                      .font(.system(size: 11, weight: .medium))
+                    Text("Latest")
+                      .font(.system(size: 11, weight: .medium))
+                  }
+                  .foregroundColor(.orange)
+                  .padding(.horizontal, 10)
+                  .padding(.vertical, 6)
+                  .background(
+                    RoundedRectangle(cornerRadius: 6)
+                      .fill(Color.orange.opacity(0.1))
+                  )
+                }
+                .buttonStyle(.plain)
+                .disabled(isLoadingMore)
+                .opacity(isLoadingMore ? 0.5 : 1.0)
+                #if os(macOS)
+                .onHover { hovering in
+                  // macOS hover effect
+                }
+                #endif
+              }
+              
+              // 向后导航按钮
+              if !hasReachedEnd {
+                Button(action: {
+                  loadMoreMessages()
+                }) {
+                  HStack(spacing: 4) {
+                    Image(systemName: "chevron.down")
+                      .font(.system(size: 11, weight: .medium))
+                    Text("Next")
+                      .font(.system(size: 11, weight: .medium))
+                  }
+                  .foregroundColor(.accentColor)
+                  .padding(.horizontal, 10)
+                  .padding(.vertical, 6)
+                  .background(
+                    RoundedRectangle(cornerRadius: 6)
+                      .fill(Color.accentColor.opacity(0.1))
+                  )
+                }
+                .buttonStyle(.plain)
+                .disabled(isLoadingMore)
+                .opacity(isLoadingMore ? 0.5 : 1.0)
+                #if os(macOS)
+                .onHover { hovering in
+                  // macOS hover effect
+                }
+                #endif
+              }
             }
           }
-          lastMessageIdBeforeLoad = nil
-        } else if newCount > oldCount {
-          print("MessageListView: New messages added but no lastMessageId recorded")
+          .padding(.horizontal, 16)
+          .padding(.vertical, 12)
+          .background(
+            Group {
+              #if os(iOS)
+                Color(.systemBackground)
+              #else
+                Color(.windowBackgroundColor)
+              #endif
+            }
+            .opacity(0.8)
+          )
+          
+          Divider()
         }
       }
+
+      // 消息列表内容
+      ScrollViewReader { proxy in
+        ScrollView {
+          messageListContent
+        }
+        .onChange(of: messages.count) { oldCount, newCount in
+          // When new messages are added, scroll to the last message from previous page
+          if newCount > oldCount, let lastMessageId = lastMessageIdBeforeLoad {
+            print("MessageListView: Scrolling to last message from previous page: \(lastMessageId)")
+            print("MessageListView: Old count: \(oldCount), New count: \(newCount)")
+            print(
+              "MessageListView: Current messages: \(sortedMessages.map { $0.messageId }.suffix(5))")
+
+            // Wait longer for UI to update completely
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+              print("MessageListView: Attempting to scroll to: \(lastMessageId)")
+              withAnimation(.easeInOut(duration: 0.3)) {
+                proxy.scrollTo(lastMessageId, anchor: .bottom)
+              }
+            }
+            lastMessageIdBeforeLoad = nil
+            
+            // 更新分页信息
+            updatePaginationInfo()
+          } else if newCount > oldCount {
+            print("MessageListView: New messages added but no lastMessageId recorded")
+            updatePaginationInfo()
+          }
+        }
+      }
+      #if os(iOS)
+        .scrollContentBackground(.hidden)
+        .scrollIndicators(.hidden)
+      #endif
     }
-    #if os(iOS)
-      .scrollContentBackground(.hidden)
-      .scrollIndicators(.hidden)
-    #endif
     .navigationTitle(title)
     #if os(iOS)
       .navigationBarTitleDisplayMode(.inline)
@@ -190,9 +307,11 @@ struct MessageListView: View {
     )
     .onAppear {
       favoriteMessageService.setModelContext(modelContext)
+      updatePaginationInfo()
     }
     .task {
       favoriteMessageService.setModelContext(modelContext)
+      updatePaginationInfo()
     }
   }
 
@@ -220,6 +339,76 @@ struct MessageListView: View {
       }
     }
   }
+  
+  private func loadPrevMessages() {
+    print("MessageListView: loadPrevMessages called")
+    print("MessageListView: onLoadPrev is \(onLoadPrev != nil ? "available" : "nil")")
+    guard let onLoadPrev = onLoadPrev else {
+      print("MessageListView: No onLoadPrev callback available")
+      return
+    }
+
+    if isLoadingMore {
+      print("MessageListView: Already loading messages")
+      return
+    }
+
+    isLoadingMore = true
+    print("MessageListView: Triggering load previous messages")
+
+    Task {
+      await onLoadPrev()
+      await MainActor.run {
+        isLoadingMore = false
+        print("MessageListView: loadPrevMessages completed")
+      }
+    }
+  }
+  
+  private func loadLatestMessages() {
+    print("MessageListView: loadLatestMessages called")
+    print("MessageListView: onLoadLatest is \(onLoadLatest != nil ? "available" : "nil")")
+    guard let onLoadLatest = onLoadLatest else {
+      print("MessageListView: No onLoadLatest callback available")
+      return
+    }
+
+    if isLoadingMore {
+      print("MessageListView: Already loading messages")
+      return
+    }
+
+    isLoadingMore = true
+    print("MessageListView: Triggering load latest messages")
+
+    Task {
+      await onLoadLatest()
+      await MainActor.run {
+        isLoadingMore = false
+        print("MessageListView: loadLatestMessages completed")
+      }
+    }
+  }
+  
+  private func updatePaginationInfo() {
+    // 页码应该由外部传入或基于实际的页面导航
+    // 这里我们保持当前页码不变，除非有明确的页面变化
+    withAnimation(.easeInOut(duration: 0.3)) {
+      showPageInfo = messages.count > 0
+    }
+    
+    print("MessageListView: Updated pagination - Current: \(currentPage), Total: \(totalPages), Messages: \(messages.count)")
+  }
+  
+  // 新增方法：更新页码（由外部调用）
+  func updatePageNumber(_ newPage: Int, total: Int) {
+    withAnimation(.easeInOut(duration: 0.3)) {
+      currentPage = newPage
+      totalPages = total
+      showPageInfo = messages.count > 0
+    }
+    print("MessageListView: Page updated - Current: \(currentPage), Total: \(totalPages)")
+  }
 }
 
 struct CompactMessageRowView: View {
@@ -235,26 +424,25 @@ struct CompactMessageRowView: View {
   }
 
   var body: some View {
-    HStack(alignment: .center, spacing: 6) {
+    HStack(alignment: .center, spacing: 8) {
       // Debug seqId - always visible with proper width
       Text("#\(message.seqId)")
-        .font(.system(size: 10, weight: .bold))
-        .foregroundColor(.primary)
-        .frame(width: 30, alignment: .leading)
+        .font(.system(size: 11, weight: .semibold))
+        .foregroundColor(.secondary)
+        .frame(width: 35, alignment: .leading) // 减少序号区域宽度
         .lineLimit(1)
 
-      // 左边：标题
+      // 标题 - 确保完整显示
       Text(message.subject)
-        .font(.system(size: 12))
-        .lineLimit(1)
-        .truncationMode(.tail)
+        .font(.system(size: 11))
+        .lineLimit(2) // 允许两行显示
+        .multilineTextAlignment(.leading)
         .foregroundColor(.primary)
-        .opacity(isSelected ? 1.0 : 0.8)
-
-      Spacer()
+        .opacity(isSelected ? 1.0 : 0.9)
+        .frame(maxWidth: .infinity, alignment: .leading) // 占用剩余空间
 
       // 右边：工具按钮
-      HStack(spacing: 4) {
+      HStack(spacing: 6) {
         if isFavorite {
           ForEach(message.tags, id: \.self) { tag in
             TagChipView(tag: tag) {
@@ -272,32 +460,38 @@ struct CompactMessageRowView: View {
           }
         }) {
           Image(systemName: isFavorite ? "star.fill" : "star")
-            .font(.system(size: 10))
+            .font(.system(size: 12))
             .foregroundColor(isFavorite ? .yellow : .secondary)
         }
         .buttonStyle(.plain)
+        #if os(macOS)
+        .onHover { hovering in
+          // macOS hover effect for star button
+        }
+        #endif
       }
+      .frame(minWidth: 50, alignment: .trailing) // 减少工具按钮区域宽度
     }
-    .padding(.vertical, 8)
-    .padding(.horizontal, 12)
+    .padding(.vertical, 10)
+    .padding(.horizontal, 14)
     .background(
       RoundedRectangle(cornerRadius: 8)
         .fill(
           isSelected
-            ? Color.accentColor.opacity(0.2)
+            ? Color.accentColor.opacity(0.15)
             : (isHovered
-              ? Color.accentColor.opacity(0.1)
+              ? Color.accentColor.opacity(0.08)
               : Color.clear)
         )
         .overlay(
           RoundedRectangle(cornerRadius: 8)
             .stroke(
               isSelected
-                ? Color.accentColor.opacity(0.6)
+                ? Color.accentColor.opacity(0.5)
                 : (isHovered
-                  ? Color.accentColor.opacity(0.3)
+                  ? Color.accentColor.opacity(0.2)
                   : Color.clear),
-              lineWidth: isSelected ? 2 : 1
+              lineWidth: isSelected ? 1.5 : 0.5
             )
         )
     )
