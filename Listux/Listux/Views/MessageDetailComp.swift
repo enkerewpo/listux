@@ -132,13 +132,15 @@ struct InlineContentView: View {
 
       ForEach(Array(sections.enumerated()), id: \.offset) { index, section in
         switch section {
+        case .subjectHeader(let header):
+          SubjectDateHeaderCard(header: header)
         case .regular(let text):
           if !text.isEmpty {
-            Text(text)
-              .font(.system(.caption, design: .monospaced))
-              .textSelection(.enabled)
-              .frame(maxWidth: .infinity, alignment: .leading)
-              .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 0) {
+              ForEach(text.components(separatedBy: .newlines), id: \.self) { line in
+                TokenizedLineView(line: line)
+              }
+            }
           }
         case .gitDiff(let diffContent):
           GitDiffCard(content: diffContent)
@@ -153,10 +155,52 @@ struct InlineContentView: View {
     var currentRegularLines: [String] = []
     var currentGitDiffLines: [String] = []
     var inGitDiff = false
+    var parsedHeader: SubjectHeaderInfo? = nil
+    var didPassHeaderBoundary = false
 
     for (index, line) in lines.enumerated() {
       let trimmedLine = line.trimmingCharacters(in: .whitespaces)
       let isQuoted = isQuotedEmailLine(line)
+
+      if !didPassHeaderBoundary {
+        if parsedHeader == nil { parsedHeader = SubjectHeaderInfo() }
+        if trimmedLine.isEmpty {
+          if let header = parsedHeader, header.hasAnyField {
+            sections.append(.subjectHeader(header))
+            parsedHeader = nil
+          }
+          didPassHeaderBoundary = true
+          continue
+        }
+        if trimmedLine.lowercased().hasPrefix("subject:") {
+          let value = String(trimmedLine.dropFirst("subject:".count)).trimmingCharacters(in: .whitespaces)
+          parsedHeader?.subject = value
+        }
+        if trimmedLine.lowercased().hasPrefix("date:") {
+          let value = String(trimmedLine.dropFirst("date:".count)).trimmingCharacters(in: .whitespaces)
+          parsedHeader?.dateText = value
+        }
+        if trimmedLine.lowercased().hasPrefix("from:") {
+          let value = String(trimmedLine.dropFirst("from:".count)).trimmingCharacters(in: .whitespaces)
+          if let emailRangeStart = value.firstIndex(of: "<"), let emailRangeEnd = value.firstIndex(of: ">"), emailRangeStart < emailRangeEnd {
+            let name = String(value[..<emailRangeStart]).trimmingCharacters(in: .whitespaces)
+            let email = String(value[value.index(after: emailRangeStart)..<emailRangeEnd])
+            parsedHeader?.fromName = name.isEmpty ? email : name
+            parsedHeader!.fromEmail = email
+          } else {
+            parsedHeader?.fromName = value
+          }
+        }
+        if trimmedLine.lowercased().hasPrefix("message-id:") {
+          if let id = firstAngleToken(in: trimmedLine) {
+            parsedHeader?.messageId = id
+          }
+        }
+        if trimmedLine.lowercased().hasPrefix("in-reply-to:") {
+          let ids = angleTokens(in: trimmedLine)
+          if !ids.isEmpty { parsedHeader?.inReplyToIds = ids }
+        }
+      }
 
       if !inGitDiff && !isQuoted && isGitSummaryLine(line) {
         if !currentRegularLines.isEmpty {
@@ -224,6 +268,9 @@ struct InlineContentView: View {
     }
 
     // Add any remaining content
+    if let header = parsedHeader, header.hasAnyField {
+      sections.insert(.subjectHeader(header), at: 0)
+    }
     if !currentRegularLines.isEmpty {
       sections.append(.regular(currentRegularLines.joined(separator: "\n")))
     }
@@ -236,6 +283,7 @@ struct InlineContentView: View {
 }
 
 enum ContentSection {
+  case subjectHeader(SubjectHeaderInfo)
   case regular(String)
   case gitDiff(String)
 }
@@ -408,3 +456,261 @@ struct SummaryLineView: View {
 }
 
 // Removed pagination; full content is rendered directly
+
+struct SubjectHeaderInfo: Equatable {
+  var subject: String? = nil
+  var dateText: String? = nil
+  var fromName: String? = nil
+  var fromEmail: String? = nil
+  var messageId: String? = nil
+  var inReplyToIds: [String] = []
+  var hasAnyField: Bool {
+    (subject != nil) || (dateText != nil) || (fromName != nil) || (messageId != nil) || !inReplyToIds.isEmpty
+  }
+}
+
+private func angleTokens(in line: String) -> [String] {
+  var tokens: [String] = []
+  var current: String = ""
+  var isIn = false
+  for ch in line {
+    if ch == "<" {
+      isIn = true
+      current = ""
+      continue
+    }
+    if ch == ">" && isIn {
+      tokens.append(current)
+      isIn = false
+      continue
+    }
+    if isIn { current.append(ch) }
+  }
+  return tokens
+}
+
+private func firstAngleToken(in line: String) -> String? { angleTokens(in: line).first }
+
+struct SubjectDateHeaderCard: View {
+  let header: SubjectHeaderInfo
+
+  private var backgroundColor: Color {
+    #if os(macOS)
+      return Color(NSColor.windowBackgroundColor)
+    #else
+      return Color(.systemBackground)
+    #endif
+  }
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 8) {
+      if let subject = header.subject, !subject.isEmpty {
+        Text(subject)
+          .font(.subheadline)
+          .fontWeight(.semibold)
+          .foregroundColor(.primary)
+          .textSelection(.enabled)
+      }
+      if let dateText = header.dateText, !dateText.isEmpty {
+        Text(dateText)
+          .font(.caption)
+          .foregroundColor(.secondary)
+          .textSelection(.enabled)
+      }
+      // HStack(spacing: 6) {
+      //   if let name = header.fromName {
+      //     EmailChipView(name: name, email: header.fromEmail)
+      //   }
+      //   if let mid = header.messageId, !mid.isEmpty {
+      //     MessageIdChipView(id: mid)
+      //   }
+      //   ForEach(header.inReplyToIds, id: \.self) { rid in
+      //     MessageIdChipView(id: rid)
+      //   }
+      //   Spacer()
+      // }
+    }
+    .padding()
+    .background(backgroundColor)
+    .cornerRadius(8)
+  }
+}
+
+struct EmailChipView: View {
+  let name: String
+  let email: String?
+
+  var body: some View {
+    HStack(spacing: 4) {
+      Image(systemName: "person.crop.circle")
+        .font(.system(size: 10))
+      if let email = email, !email.isEmpty {
+        Text("\(name) <\(email)>")
+          .font(.caption2)
+      } else {
+        Text(name)
+          .font(.caption2)
+      }
+    }
+    .padding(.horizontal, 6)
+    .padding(.vertical, 3)
+    .background(Color.green.opacity(0.15))
+    .overlay(
+      RoundedRectangle(cornerRadius: 4)
+        .stroke(Color.green.opacity(0.3), lineWidth: 1)
+    )
+    .cornerRadius(4)
+  }
+}
+
+struct MessageIdChipView: View {
+  let id: String
+
+  var body: some View {
+    HStack(spacing: 4) {
+      Image(systemName: "number")
+        .font(.system(size: 10))
+      Text("<\(id)>")
+        .font(.caption2)
+        .textSelection(.enabled)
+    }
+    .padding(.horizontal, 6)
+    .padding(.vertical, 3)
+    .background(Color.purple.opacity(0.15))
+    .overlay(
+      RoundedRectangle(cornerRadius: 4)
+        .stroke(Color.purple.opacity(0.3), lineWidth: 1)
+    )
+    .cornerRadius(4)
+  }
+}
+
+// MARK: - Inline tokenization for regular content lines
+
+private enum LineToken: Equatable {
+  case text(String)
+  case email(name: String, email: String)
+  case messageId(String)
+}
+
+private func isMessageIdContext(_ line: String) -> Bool {
+  let lower = line.trimmingCharacters(in: .whitespaces).lowercased()
+  return lower.hasPrefix("message-id:") || lower.hasPrefix("in-reply-to:")
+}
+
+private func isLikelyMessageIdToken(_ token: String) -> Bool {
+  // Heuristic: must contain '@' and at least 6 consecutive digits
+  if token.contains("@") == false { return false }
+  if token.range(of: "\\d{6,}", options: .regularExpression) != nil { return true }
+  // Or contain two or more hyphens with digits around
+  let hyphenDigit = token.range(of: "[0-9]+-+[0-9]+", options: .regularExpression) != nil
+  return hyphenDigit
+}
+
+private func isEmailAddress(_ token: String) -> Bool {
+  let pattern = "[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}"
+  return token.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
+}
+
+private func splitTrailingName(from precedingText: String) -> (prefix: String, name: String)? {
+  var text = precedingText
+  if text.isEmpty { return nil }
+  // Remove trailing spaces
+  while text.last == " " { text.removeLast() }
+  guard let colonIndex = text.lastIndex(of: ":") else {
+    // No colon; try to take trailing word sequence as name if it has at least one letter
+    let components = text.split(separator: " ")
+    if components.isEmpty { return nil }
+    let nameStartCount = min(components.count, 5) // avoid consuming entire line
+    let nameComponents = components.suffix(nameStartCount)
+    let name = nameComponents.joined(separator: " ")
+    if name.range(of: "[A-Za-z]", options: .regularExpression) != nil {
+      let prefixLen = text.count - name.count
+      let prefix = String(text.prefix(prefixLen))
+      return (prefix: prefix, name: name)
+    }
+    return nil
+  }
+  let afterColon = text.index(after: colonIndex)
+  let namePart = text[afterColon...].trimmingCharacters(in: .whitespaces)
+  if namePart.isEmpty { return nil }
+  let prefix = String(text[..<afterColon]) + " "
+  return (prefix: prefix, name: namePart)
+}
+
+private func tokenizeLine(_ line: String) -> [LineToken] {
+  if line.isEmpty { return [.text("")] }
+  var tokens: [LineToken] = []
+  let nsLine = line as NSString
+  let pattern = "<([^>]+)>"
+  guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
+    return [.text(line)]
+  }
+  var lastIndex = 0
+  let matches = regex.matches(in: line, options: [], range: NSRange(location: 0, length: nsLine.length))
+  let midContext = isMessageIdContext(line)
+  for match in matches {
+    let range = match.range
+    if range.location > lastIndex {
+      let textSeg = nsLine.substring(with: NSRange(location: lastIndex, length: range.location - lastIndex))
+      tokens.append(.text(textSeg))
+    }
+    let innerRange = match.range(at: 1)
+    let inner = nsLine.substring(with: innerRange)
+    if midContext {
+      tokens.append(.messageId(inner))
+    } else if isLikelyMessageIdToken(inner) {
+      tokens.append(.messageId(inner))
+    } else if isEmailAddress(inner) {
+      // Try to merge preceding trailing name from last text token
+      if case .text(let prevText)? = tokens.last {
+        if let split = splitTrailingName(from: prevText) {
+          // Replace last text with its prefix
+          _ = tokens.popLast()
+          if !split.prefix.isEmpty { tokens.append(.text(split.prefix)) }
+          tokens.append(.email(name: split.name, email: inner))
+        } else {
+          tokens.append(.text("<" + inner + ">"))
+        }
+      } else {
+        tokens.append(.text("<" + inner + ">"))
+      }
+    } else {
+      tokens.append(.text("<" + inner + ">"))
+    }
+    lastIndex = range.location + range.length
+  }
+  if lastIndex < nsLine.length {
+    let tail = nsLine.substring(from: lastIndex)
+    tokens.append(.text(tail))
+  }
+  return tokens
+}
+
+struct TokenizedLineView: View {
+  let line: String
+
+  var body: some View {
+    let parts = tokenizeLine(line)
+    ScrollView(.horizontal, showsIndicators: false) {
+      HStack(alignment: .firstTextBaseline, spacing: 0) {
+        ForEach(Array(parts.enumerated()), id: \.offset) { _, part in
+          switch part {
+          case .text(let s):
+            Text(s)
+              .font(.system(.caption, design: .monospaced))
+              .foregroundColor(.primary)
+              .textSelection(.enabled)
+          case .email(let name, let email):
+            EmailChipView(name: name, email: email)
+              .padding(.horizontal, 2)
+          case .messageId(let id):
+            MessageIdChipView(id: id)
+              .padding(.horizontal, 2)
+          }
+        }
+      }
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+  }
+}
