@@ -1,93 +1,6 @@
 import CryptoKit
 import SwiftUI
 
-struct MessageMetadataView: View {
-  let metadata: MessageMetadata
-
-  var body: some View {
-    VStack(alignment: .leading, spacing: 12) {
-
-      // Author and Date
-      HStack {
-        Label(metadata.author, systemImage: "person.circle")
-          .font(.subheadline)
-          .foregroundColor(.primary)
-
-        Spacer()
-
-        Text(metadata.date, style: .date)
-          .font(.caption)
-          .foregroundColor(.secondary)
-      }
-
-      // Recipients
-      if !metadata.recipients.isEmpty {
-        VStack(alignment: .leading, spacing: 4) {
-          Text("To:")
-            .font(.caption)
-            .foregroundColor(.secondary)
-
-          ForEach(metadata.recipients, id: \.self) { recipient in
-            Text(recipient)
-              .font(.caption)
-              .foregroundColor(.primary)
-              .lineLimit(2)
-              .minimumScaleFactor(0.8)
-          }
-        }
-      }
-
-      // CC Recipients
-      if !metadata.ccRecipients.isEmpty {
-        VStack(alignment: .leading, spacing: 4) {
-          Text("Cc:")
-            .font(.caption)
-            .foregroundColor(.secondary)
-
-          ForEach(metadata.ccRecipients, id: \.self) { recipient in
-            Text(recipient)
-              .font(.caption)
-              .foregroundColor(.primary)
-              .lineLimit(2)
-              .minimumScaleFactor(0.8)
-          }
-        }
-      }
-
-      // Links
-      HStack {
-        if !metadata.permalink.isEmpty {
-          Link(
-            "Permalink",
-            destination: URL(string: metadata.permalink) ?? URL(string: "https://lore.kernel.org")!
-          )
-          .font(.caption)
-        }
-
-        if !metadata.rawUrl.isEmpty {
-          Link(
-            "Raw",
-            destination: URL(string: metadata.rawUrl) ?? URL(string: "https://lore.kernel.org")!
-          )
-          .font(.caption)
-        }
-
-        Spacer()
-      }
-    }
-    .padding()
-    .background(backgroundColor)
-    .cornerRadius(8)
-  }
-
-  private var backgroundColor: Color {
-    #if os(macOS)
-      return Color(NSColor.windowBackgroundColor)
-    #else
-      return Color(.systemBackground)
-    #endif
-  }
-}
 
 struct MessageContentView: View {
   let content: String
@@ -196,7 +109,7 @@ struct InlineContentView: View {
             let name = String(value[..<emailRangeStart]).trimmingCharacters(in: .whitespaces)
             let email = String(value[value.index(after: emailRangeStart)..<emailRangeEnd])
             parsedHeader?.fromName = name.isEmpty ? email : name
-            parsedHeader!.fromEmail = email
+            parsedHeader?.fromEmail = email
           } else {
             parsedHeader?.fromName = value
           }

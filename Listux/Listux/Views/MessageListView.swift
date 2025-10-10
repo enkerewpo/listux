@@ -440,6 +440,15 @@ struct CompactMessageRowView: View {
   private var isFavorite: Bool {
     message.isFavorite
   }
+  
+  private var displayTitle: String {
+    if !message.content.isEmpty {
+      if let parsedSubject = MessageParsingUtils.extractSubjectFromContent(message.content) {
+        return parsedSubject
+      }
+    }
+    return message.subject
+  }
 
   var body: some View {
     HStack(alignment: .center, spacing: 8) {
@@ -451,7 +460,7 @@ struct CompactMessageRowView: View {
         .lineLimit(1)
 
       // 标题 - 确保完整显示
-      Text(message.subject)
+      Text(displayTitle)
         .font(.system(size: 11))
         .lineLimit(2) // 允许两行显示
         .multilineTextAlignment(.leading)

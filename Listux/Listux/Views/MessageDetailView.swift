@@ -10,9 +10,7 @@ struct MessageDetailView: View {
   @State private var parsedDetail: ParsedMessageDetail?
   @State private var isLoadingHtml: Bool = false
   @State private var isFavoriteAnimating: Bool = false
-  @State private var selectedTab: Int = 0
   @State private var showFullContent: Bool = false
-  @State private var currentPage: Int = 0
   @Environment(\.modelContext) private var modelContext
   @Query private var preferences: [Preference]
   @State private var favoriteMessageService = FavoriteMessageService.shared
@@ -36,13 +34,18 @@ struct MessageDetailView: View {
   private var isPatchEmail: Bool {
     true
   }
+  
+  private var displayTitle: String {
+    if let detail = parsedDetail, !detail.content.isEmpty {
+      if let parsedSubject = MessageParsingUtils.extractSubjectFromContent(detail.content) {
+        return parsedSubject
+      }
+    }
+    return selectedMessage?.subject ?? "No Subject"
+  }
 
   // Pagination removed; full content always rendered
 
-  private var availableTabs: [String] {
-    guard parsedDetail != nil else { return [] }
-    return ["Content", "Metadata"]
-  }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
@@ -51,7 +54,7 @@ struct MessageDetailView: View {
         VStack(alignment: .leading, spacing: 8) {
           // Header with favorite button
           HStack {
-            Text(msg.subject)
+            Text(displayTitle)
               .font(.headline)
               .bold()
               .lineLimit(3)
@@ -142,55 +145,6 @@ struct MessageDetailView: View {
           .background(Color(UIColor.systemBackground))
         #endif
 
-        // Fixed toolbar - NO SCROLLING
-        if parsedDetail != nil {
-          HStack(spacing: 8) {
-            // Tab selector with icons
-            if availableTabs.count > 1 {
-              HStack(spacing: 0) {
-                ForEach(Array(availableTabs.enumerated()), id: \.offset) { index, tab in
-                  Button(action: {
-                    selectedTab = index
-                  }) {
-                    HStack(spacing: 4) {
-                      Image(systemName: tab == "Metadata" ? "info.circle" : "doc.text")
-                        .font(.system(size: 12))
-                      Text(tab)
-                        .font(.caption2)
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(selectedTab == index ? Color.accentColor.opacity(0.2) : Color.clear)
-                    .foregroundColor(selectedTab == index ? .accentColor : .secondary)
-                    .cornerRadius(4)
-                  }
-                  .buttonStyle(.plain)
-
-                  if index < availableTabs.count - 1 {
-                    Divider()
-                      .frame(height: 16)
-                      .padding(.horizontal, 2)
-                  }
-                }
-              }
-              .padding(.horizontal, 6)
-              .padding(.vertical, 2)
-              .background(Color.secondary.opacity(0.1))
-              .cornerRadius(6)
-            }
-
-            Spacer()
-
-            // Content controls removed
-          }
-          .padding(.horizontal, 12)
-          .padding(.vertical, 4)
-          #if os(macOS)
-            .background(Color(NSColor.controlBackgroundColor))
-          #else
-            .background(Color(UIColor.systemBackground))
-          #endif
-        }
 
         // Content area with fixed controls and scrollable content
         GeometryReader { geometry in
@@ -204,29 +158,15 @@ struct MessageDetailView: View {
             .frame(maxWidth: .infinity, maxHeight: geometry.size.height, alignment: .top)
             .padding()
           } else if let detail = parsedDetail {
-            if selectedTab < availableTabs.count {
-              ScrollViewReader { proxy in
-                ScrollView {
-                  VStack(alignment: .leading, spacing: 16) {
-                    switch availableTabs[selectedTab] {
-                    case "Metadata":
-                      MessageMetadataView(metadata: detail.metadata)
-                    case "Content":
-                      MessageContentView(content: detail.content)
-                    default:
-                      EmptyView()
-                    }
-                  }
-                  .padding()
-                  .id("content-top")
+            ScrollViewReader { proxy in
+              ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                  MessageContentView(content: detail.content)
                 }
-                .frame(maxWidth: .infinity, maxHeight: geometry.size.height, alignment: .top)
-                .onChange(of: selectedTab) { _, _ in
-                  // Reset content state when switching tabs
-                  showFullContent = false
-                  currentPage = 0
-                }
+                .padding()
+                .id("content-top")
               }
+              .frame(maxWidth: .infinity, maxHeight: geometry.size.height, alignment: .top)
             }
           } else {
             Text("No parsed content available")
@@ -248,12 +188,10 @@ struct MessageDetailView: View {
         loadMessageDetail(message: message)
         // Reset content state when switching messages
         showFullContent = false
-        currentPage = 0
       } else {
         parsedDetail = nil
         isLoadingHtml = false
         showFullContent = false
-        currentPage = 0
       }
     }
     .onAppear {
