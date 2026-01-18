@@ -3,50 +3,53 @@ import SwiftSoup
 import os.log
 
 class Parser {
-  
+
   /// Decode HTML entities in a string
   /// Handles both named entities (like &quot;) and numeric entities (like &#34; or &#x22;)
   private static func decodeHTMLEntities(_ text: String) -> String {
     var result = text
-    
+
     // First, try using Foundation's String extension if available
     // Otherwise, manually decode common entities
-    
+
     // Decode numeric entities (&#34;, &#39;, etc.)
     // Pattern: &#number; or &#xhex;
     let numericEntityPattern = #"&#(\d+);|&#x([0-9a-fA-F]+);"#
     if let regex = try? NSRegularExpression(pattern: numericEntityPattern, options: []) {
       let nsString = result as NSString
-      let matches = regex.matches(in: result, options: [], range: NSRange(location: 0, length: nsString.length))
-      
+      let matches = regex.matches(
+        in: result, options: [], range: NSRange(location: 0, length: nsString.length))
+
       // Process matches in reverse order to maintain indices
       for match in matches.reversed() {
         var replacement: String?
-        
+
         if match.range(at: 1).location != NSNotFound {
           // Decimal entity: &#34;
           let numberRange = match.range(at: 1)
           if let numberString = Range(numberRange, in: result),
-             let number = Int(result[numberString]),
-             let unicodeScalar = UnicodeScalar(number) {
+            let number = Int(result[numberString]),
+            let unicodeScalar = UnicodeScalar(number)
+          {
             replacement = String(Character(unicodeScalar))
           }
         } else if match.range(at: 2).location != NSNotFound {
           // Hexadecimal entity: &#x22;
           let hexRange = match.range(at: 2)
           if let hexString = Range(hexRange, in: result),
-             let number = Int(result[hexString], radix: 16),
-             let unicodeScalar = UnicodeScalar(number) {
+            let number = Int(result[hexString], radix: 16),
+            let unicodeScalar = UnicodeScalar(number)
+          {
             replacement = String(Character(unicodeScalar))
           }
         }
-        
+
         if let replacement = replacement {
           result = (result as NSString).replacingCharacters(in: match.range, with: replacement)
         }
       }
     }
-    
+
     // Decode named entities (after numeric entities to avoid conflicts)
     // Note: numeric entities like &#34; are already decoded above
     let namedEntities: [String: String] = [
@@ -77,13 +80,13 @@ class Parser {
       "&euro;": "€",
       "&pound;": "£",
       "&yen;": "¥",
-      "&cent;": "¢"
+      "&cent;": "¢",
     ]
-    
+
     for (entity, replacement) in namedEntities {
       result = result.replacingOccurrences(of: entity, with: replacement)
     }
-    
+
     return result
   }
 
@@ -92,7 +95,7 @@ class Parser {
 
   struct MessagePageResult {
     var messages: [Message]
-    var rootMessages: [Message] // Root messages (top-level threads)
+    var rootMessages: [Message]  // Root messages (top-level threads)
     /// URL for the next (older) page, if available
     var nextURL: String?
     /// URL for the previous (newer) page, if available
@@ -164,18 +167,19 @@ class Parser {
           continue
         }
         seenUrls.insert(url)
-        
+
         // Build full URL early to check for duplicates by messageId
-        var fullUrl = LORE_LINUX_BASE_URL.value + "/" + mailingList.name + "/"
+        var fullUrl =
+          LORE_LINUX_BASE_URL.value + "/" + mailingList.name + "/"
           + url.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        
+
         // Remove /T/#u or /T/#t suffix to get the base messageId
         if fullUrl.hasSuffix("/T/#u") {
           fullUrl = String(fullUrl.dropLast(5))
         } else if fullUrl.hasSuffix("/T/#t") {
           fullUrl = String(fullUrl.dropLast(5))
         }
-        
+
         // Skip if we've already seen this messageId (avoid duplicates with different URL suffixes)
         if seenMessageIds.contains(fullUrl) {
           LogManager.shared.info("Skipping duplicate messageId: \(fullUrl)")
@@ -196,7 +200,7 @@ class Parser {
         var subject = decodeHTMLEntities(titleAttr)
         if subject.isEmpty {
           subject = decodeHTMLEntities(linkText)
-          
+
           // Try to extract complete text from raw HTML, especially for first-level replies
           // which might have truncated text in SwiftSoup's text() method
           if let urlRange = html.range(of: url) {
@@ -232,7 +236,8 @@ class Parser {
                     // Decode HTML entities first
                     var cleanedRawText = decodeHTMLEntities(rawText)
                     // Then clean up whitespace
-                    cleanedRawText = cleanedRawText
+                    cleanedRawText =
+                      cleanedRawText
                       .replacingOccurrences(of: "\n", with: " ")
                       .replacingOccurrences(of: "\r", with: " ")
                       .replacingOccurrences(of: "\t", with: " ")
@@ -340,10 +345,12 @@ class Parser {
             let beforeIndex = html.index(startIndex, offsetBy: -lookBackDistance)
             let prefix = html[beforeIndex..<startIndex]
             LogManager.shared.info("Checking prefix for backtick: \(String(prefix.suffix(50)))")
-            
+
             // Check if there's a backtick followed by space or newline before the <a> tag
             // Pattern: ` <a or `\n<a or `\r\n<a
-            if prefix.contains("` <") || prefix.contains("`\n<") || prefix.contains("`\r\n<") || prefix.contains("`\r<") {
+            if prefix.contains("` <") || prefix.contains("`\n<") || prefix.contains("`\r\n<")
+              || prefix.contains("`\r<")
+            {
               // This is a first-level reply
               if let root = lastRootMessage {
                 // Check if this message is already in the root's replies to avoid duplicates
@@ -352,7 +359,8 @@ class Parser {
                   root.replies.append(message)
                   LogManager.shared.info("Identified as first-level reply to: \(root.subject)")
                 } else {
-                  LogManager.shared.info("Skipping duplicate reply: \(message.messageId) already in root's replies")
+                  LogManager.shared.info(
+                    "Skipping duplicate reply: \(message.messageId) already in root's replies")
                 }
               } else {
                 // No root found, treat as root anyway
@@ -383,16 +391,32 @@ class Parser {
       }
 
       // Parse pagination links: "next (older)", "prev (newer)", and "latest" if they exist
+      // Also check for rel="next" attribute for ?t=timestamp format
       let linkElements = try doc.select("a")
       for link in linkElements {
         let caption = try link.text().lowercased()
         let href = try link.attr("href")
-        if caption.contains("next (older)") {
+        let rel = try link.attr("rel").lowercased()
+
+        // Check rel attribute first (for ?t=timestamp format)
+        if rel == "next" {
           nextURL = href
-          LogManager.shared.info("Found next URL: \(href)")
-        } else if caption.contains("prev (newer)") {
+          LogManager.shared.info("Found next URL via rel=next: \(href)")
+        } else if rel == "prev" {
           prevURL = href
-          LogManager.shared.info("Found prev URL: \(href)")
+          LogManager.shared.info("Found prev URL via rel=prev: \(href)")
+        }
+        // Then check text content
+        else if caption.contains("next (older)") || caption.contains("next") {
+          if nextURL == nil {
+            nextURL = href
+            LogManager.shared.info("Found next URL: \(href)")
+          }
+        } else if caption.contains("prev (newer)") || caption.contains("prev") {
+          if prevURL == nil {
+            prevURL = href
+            LogManager.shared.info("Found prev URL: \(href)")
+          }
         } else if caption.contains("latest") {
           latestURL = href
           LogManager.shared.info("Found latest URL: \(href)")
@@ -409,7 +433,8 @@ class Parser {
     LogManager.shared.info(
       "Parsed \(rootMessages.count) root messages for list \(mailingList.name)")
     return MessagePageResult(
-      messages: orderedMessages, rootMessages: rootMessages, nextURL: nextURL, prevURL: prevURL, latestURL: latestURL)
+      messages: orderedMessages, rootMessages: rootMessages, nextURL: nextURL, prevURL: prevURL,
+      latestURL: latestURL)
   }
 
   /// Parse the mailing list home page and return a list of (name, desc) tuples.
@@ -457,19 +482,86 @@ class Parser {
 
     do {
       let doc = try SwiftSoup.parse(html)
-      
-      // Search results are typically in links with href ending in /T/#t or /T/#u
-      // But they might also be in a different format, let's check for common patterns
-      let links = try doc.select("a[href$=/T/#t], a[href$=/T/#u], a[href*=/T/]")
-      
-      LogManager.shared.info("Found \(links.count) potential message links in search results")
+
+      // Search results have a different format - links are in numbered list items
+      // Format: <pre>      1. <b><a href="message-id/">Subject</a></b> ... </pre>
+      // We need to find links that are inside numbered list items (1., 2., etc.)
+      // These links typically end with / or are message IDs
+      // Exclude navigation section (pre#t) and form sections
+      let allLinks = try doc.select("pre:not(#t):not([id=t]) a[href]")
+      var messageLinks: [Element] = []
+
+      for link in allLinks {
+        let href = try link.attr("href")
+
+        // Check if this link is in a numbered list item (starts with number and dot)
+        // Also check if href looks like a message ID (contains @ or is a timestamp-like pattern)
+        if href.hasSuffix("/") && !href.contains("?") && !href.contains("#") {
+          // Check if ancestor context suggests this is a search result item
+          // Search results are typically in format: "1. <b><a>Subject</a></b> - by Author @ date"
+          // The " - by " text is in the <pre> tag, not in the immediate parent <b> tag
+          do {
+            var current: Element? = link.parent()
+            var foundSearchResultPattern = false
+
+            // Walk up the ancestor chain to find the <pre> tag that contains " - by "
+            while let element = current {
+              let elementText = try element.text()
+              let elementHtml = try element.outerHtml()
+
+              // Check if this element or its text contains the search result pattern
+              if elementText.contains(" - by ") || elementHtml.contains(" - by ") {
+                foundSearchResultPattern = true
+                break
+              }
+
+              // Stop if we've reached a <pre> tag (the container for search results)
+              if element.tagName().lowercased() == "pre" {
+                // Even if we don't find " - by " in this pre, check if it's a numbered list item
+                if elementText.range(of: #"^\s*\d+\."#, options: .regularExpression) != nil {
+                  foundSearchResultPattern = true
+                }
+                break
+              }
+
+              current = element.parent()
+            }
+
+            if foundSearchResultPattern {
+              messageLinks.append(link)
+            }
+          } catch {
+            // Skip if we can't traverse ancestors
+            continue
+          }
+        }
+      }
+
+      // Fallback: also try to find links ending in /T/#t or /T/#u (for nested view)
+      let threadLinks = try doc.select("a[href$=/T/#t], a[href$=/T/#u]")
+      for link in threadLinks {
+        let linkHref = try link.attr("href")
+        let isDuplicate = messageLinks.contains { existingLink in
+          do {
+            return try existingLink.attr("href") == linkHref
+          } catch {
+            return false
+          }
+        }
+        if !isDuplicate {
+          messageLinks.append(link)
+        }
+      }
+
+      LogManager.shared.info(
+        "Found \(messageLinks.count) potential message links in search results")
 
       var seqId = 0
       var seenUrls = Set<String>()
 
-      for link in links {
+      for link in messageLinks {
         let url = try link.attr("href")
-        
+
         // Skip if we've already seen this URL
         if seenUrls.contains(url) {
           continue
@@ -496,7 +588,9 @@ class Parser {
           if url.hasPrefix("/") {
             fullUrl = LORE_LINUX_BASE_URL.value + url
           } else {
-            fullUrl = LORE_LINUX_BASE_URL.value + "/" + url.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            fullUrl =
+              LORE_LINUX_BASE_URL.value + "/"
+              + url.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
           }
         }
 
@@ -521,20 +615,54 @@ class Parser {
         seqId += 1
       }
 
-      // Parse pagination links
-      let linkElements = try doc.select("a")
-      for link in linkElements {
-        let caption = try link.text().lowercased()
-        let href = try link.attr("href")
-        if caption.contains("next (older)") || caption.contains("next") {
-          nextURL = href
-          LogManager.shared.info("Found next URL: \(href)")
-        } else if caption.contains("prev (newer)") || caption.contains("prev") || caption.contains("previous") {
-          prevURL = href
-          LogManager.shared.info("Found prev URL: \(href)")
-        } else if caption.contains("latest") {
-          latestURL = href
-          LogManager.shared.info("Found latest URL: \(href)")
+      // Parse pagination links - they are in the navigation section with id="t"
+      // Format: <pre id=t>Results 1-200 of ~6000000  <a href="?q=test&o=200" rel=next>next (older)</a> ... </pre>
+      let navSection = try doc.select("pre#t, pre[id=t]")
+      if !navSection.isEmpty() {
+        let navLinks = try navSection.select("a")
+        for link in navLinks {
+          let caption = try link.text().lowercased()
+          let href = try link.attr("href")
+          let rel = try link.attr("rel").lowercased()
+
+          // Check rel attribute first (most reliable)
+          if rel == "next" || caption.contains("next (older)") {
+            nextURL = href
+            LogManager.shared.info("Found next URL: \(href)")
+          } else if caption.contains("prev (newer)") || caption.contains("prev")
+            || caption.contains("previous")
+          {
+            prevURL = href
+            LogManager.shared.info("Found prev URL: \(href)")
+          } else if caption.contains("reverse") {
+            // "reverse" link is usually the prev link in search results
+            prevURL = href
+            LogManager.shared.info("Found prev URL (reverse): \(href)")
+          } else if caption.contains("latest") {
+            latestURL = href
+            LogManager.shared.info("Found latest URL: \(href)")
+          }
+        }
+      }
+
+      // Fallback: if no navigation section found, try to find pagination links more carefully
+      if nextURL == nil && prevURL == nil {
+        let allLinks = try doc.select("a")
+        for link in allLinks {
+          let caption = try link.text().lowercased()
+          let href = try link.attr("href")
+          // Only consider links with query parameters (like ?q=test&o=200) as pagination
+          if href.contains("?q=") && (href.contains("&o=") || href.contains("o=")) {
+            if caption.contains("next (older)") || caption.contains("next") {
+              nextURL = href
+              LogManager.shared.info("Found next URL (fallback): \(href)")
+            } else if caption.contains("prev (newer)") || caption.contains("prev")
+              || caption.contains("previous") || caption.contains("reverse")
+            {
+              prevURL = href
+              LogManager.shared.info("Found prev URL (fallback): \(href)")
+            }
+          }
         }
       }
 
@@ -564,43 +692,46 @@ class Parser {
     // Extract root messages (messages without parent)
     let rootMessages = messages.filter { $0.parent == nil }
     return MessagePageResult(
-      messages: messages, rootMessages: rootMessages, nextURL: nextURL, prevURL: prevURL, latestURL: latestURL)
+      messages: messages, rootMessages: rootMessages, nextURL: nextURL, prevURL: prevURL,
+      latestURL: latestURL)
   }
 
   /// Parse thread page and return the complete thread structure
   /// Thread pages use nested structure with indentation to show hierarchy
-  static func parseThreadPage(from html: String, rootMessageId: String, mailingList: MailingList) -> [Message] {
+  static func parseThreadPage(from html: String, rootMessageId: String, mailingList: MailingList)
+    -> [Message]
+  {
     LogManager.shared.info("Parsing thread page for root message: \(rootMessageId)")
     var threadMessages: [Message] = []
     var messageMap: [String: Message] = [:]
-    
+
     do {
       let doc = try SwiftSoup.parse(html)
-      
+
       // Thread pages use nested structure, links are in <a> tags with href ending in /T/#t or /T/#u
       // The nesting is indicated by indentation or specific HTML structure
       let links = try doc.select("a[href$=/T/#t], a[href$=/T/#u], a[href*=/T/]")
-      
+
       LogManager.shared.info("Found \(links.count) message links in thread HTML")
-      
+
       var seqId = 0
       var seenUrls = Set<String>()
-      var parentStack: [Message] = [] // Stack to track parent messages based on nesting
-      
+      var parentStack: [Message] = []  // Stack to track parent messages based on nesting
+
       for link in links {
         let url = try link.attr("href")
-        
+
         // Skip if we've already seen this URL
         if seenUrls.contains(url) {
           continue
         }
         seenUrls.insert(url)
-        
+
         // Extract subject and decode HTML entities
         let titleAttr = try link.attr("title")
         let linkText = try link.text()
         let subject = decodeHTMLEntities(titleAttr.isEmpty ? linkText : titleAttr)
-        
+
         // Try to extract timestamp from URL
         var timestamp: Date
         if let urlTimestamp = extractTimestampFromURL(url) {
@@ -608,28 +739,30 @@ class Parser {
         } else {
           timestamp = Date()
         }
-        
+
         // Construct full URL
         var fullUrl = url
         if !url.hasPrefix("http") {
           if url.hasPrefix("/") {
             fullUrl = LORE_LINUX_BASE_URL.value + url
           } else {
-            fullUrl = LORE_LINUX_BASE_URL.value + "/" + mailingList.name + "/" + url.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            fullUrl =
+              LORE_LINUX_BASE_URL.value + "/" + mailingList.name + "/"
+              + url.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
           }
         }
-        
+
         // Remove /T/#u or /T/#t suffix
         if fullUrl.hasSuffix("/T/#u") {
           fullUrl = String(fullUrl.dropLast(5))
         } else if fullUrl.hasSuffix("/T/#t") {
           fullUrl = String(fullUrl.dropLast(5))
         }
-        
+
         // Check if message already exists
         let existingMessage = mailingList.messages.first { $0.messageId == fullUrl }
         let message: Message
-        
+
         if let existing = existingMessage {
           message = existing
           message.subject = subject
@@ -644,9 +777,9 @@ class Parser {
           )
           message.mailingList = mailingList
         }
-        
+
         seqId += 1
-        
+
         // Determine parent based on HTML structure
         // In thread pages, nested messages are typically indented or in nested elements
         // We'll use the link's parent elements to determine nesting level
@@ -661,13 +794,13 @@ class Parser {
               nestingLevel += 1
             }
             currentElement = element.parent()
-            
+
             // Limit depth check
             if nestingLevel > 10 {
               break
             }
           }
-          
+
           // Find appropriate parent from stack
           // If nesting level is 0 or 1, it's a root or direct child
           // Higher nesting levels indicate deeper nesting
@@ -691,7 +824,7 @@ class Parser {
               let parent = parentStack[targetLevel]
               message.parent = parent
               parent.replies.append(message)
-              
+
               // Update stack - remove deeper levels and add this message
               parentStack = Array(parentStack.prefix(targetLevel + 1))
               parentStack.append(message)
@@ -703,16 +836,16 @@ class Parser {
             }
           }
         }
-        
+
         messageMap[fullUrl] = message
         threadMessages.append(message)
       }
-      
+
       LogManager.shared.info("Parsed \(threadMessages.count) messages in thread")
     } catch {
       LogManager.shared.error("Error parsing thread HTML: \(error.localizedDescription)")
     }
-    
+
     return threadMessages
   }
 }

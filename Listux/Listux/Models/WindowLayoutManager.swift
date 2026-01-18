@@ -33,17 +33,23 @@ class WindowLayoutManager {
     let minMessageListWidth: Double = 300
     let minDetailWidth: Double = 400
 
-    let availableWidth = windowWidth - minSidebarWidth - minMessageListWidth - minDetailWidth
+    // Calculate available width for messageList and detail (they share the same width)
+    let minContentWidth = max(minMessageListWidth, minDetailWidth)  // Use the larger minimum
+    let availableWidth = windowWidth - minSidebarWidth - (minContentWidth * 2)
 
     if availableWidth >= 0 {
       let extraPerColumn = availableWidth / 3
       let sidebarWidth = minSidebarWidth + extraPerColumn
-      let messageListWidth = minMessageListWidth + extraPerColumn
-      let detailWidth = minDetailWidth + extraPerColumn
+      // messageList and detail share the same width
+      let contentWidth = minContentWidth + extraPerColumn
+      let messageListWidth = contentWidth
+      let detailWidth = contentWidth
 
       return (sidebarWidth, messageListWidth, detailWidth)
     } else {
-      return (minSidebarWidth, minMessageListWidth, minDetailWidth)
+      // Fallback: use minimum widths, but make messageList and detail equal
+      let contentWidth = minContentWidth
+      return (minSidebarWidth, contentWidth, contentWidth)
     }
   }
 

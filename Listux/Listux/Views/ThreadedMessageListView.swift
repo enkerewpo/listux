@@ -12,8 +12,8 @@ struct ThreadedMessageListView: View {
   @Query private var preferences: [Preference]
   @State private var favoriteMessageService = FavoriteMessageService.shared
   @State private var isLoadingMore: Bool = false
-  @State private var expandedMessages: Set<String> = Set() // Track expanded messages by messageId
-  
+  @State private var expandedMessages: Set<String> = Set()  // Track expanded messages by messageId
+
   // Pagination state
   @State private var currentPage: Int = 1
   @State private var totalPages: Int = 1
@@ -104,8 +104,12 @@ struct ThreadedMessageListView: View {
                 .disabled(isLoadingMore)
               }
 
-              if !hasReachedEnd {
-                Button(action: { loadMoreMessages() }) {
+              if !hasReachedEnd && onLoadMore != nil {
+                Button(action: {
+                  Task {
+                    await loadMoreMessages()
+                  }
+                }) {
                   Image(systemName: "chevron.down")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(.accentColor)
@@ -181,10 +185,10 @@ struct ThreadedMessageListView: View {
     .onAppear {
       favoriteMessageService.setModelContext(modelContext)
       updatePaginationInfo()
-      // Expand all root messages by default
-      for message in rootMessages {
-        expandedMessages.insert(message.messageId)
-      }
+      expandAllMessages()
+    }
+    .onChange(of: rootMessages) { _, _ in
+      expandAllMessages()
     }
     .task {
       favoriteMessageService.setModelContext(modelContext)
@@ -192,14 +196,12 @@ struct ThreadedMessageListView: View {
     }
   }
 
-  private func loadMoreMessages() {
+  private func loadMoreMessages() async {
     guard let onLoadMore = onLoadMore, !isLoadingMore else { return }
     isLoadingMore = true
-    Task {
-      await onLoadMore()
-      await MainActor.run {
-        isLoadingMore = false
-      }
+    await onLoadMore()
+    await MainActor.run {
+      isLoadingMore = false
     }
   }
 
@@ -228,6 +230,25 @@ struct ThreadedMessageListView: View {
   private func updatePaginationInfo() {
     withAnimation(.easeInOut(duration: 0.3)) {
       showPageInfo = rootMessages.count > 0
+    }
+  }
+
+  /// Recursively expand all messages in the tree structure
+  private func expandAllMessages() {
+    func expandMessage(_ message: Message) {
+      // Expand this message if it has replies
+      if !message.replies.isEmpty {
+        expandedMessages.insert(message.messageId)
+        // Recursively expand all replies
+        for reply in message.replies {
+          expandMessage(reply)
+        }
+      }
+    }
+
+    // Expand all root messages and their replies
+    for rootMessage in rootMessages {
+      expandMessage(rootMessage)
     }
   }
 }

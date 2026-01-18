@@ -146,12 +146,20 @@ struct InlineContentView: View {
 
       // Check for git diff start pattern: starts with "---" (includes summary)
       if line.hasPrefix("---") && !inGitDiff && !isQuoted {
-        // Look ahead to see if this is a git diff by checking for "diff --git" or "+++" in the next few lines
+        // Look ahead to see if this is a git diff by checking for:
+        // 1. "diff --git" or "+++" in the next few lines
+        // 2. Git summary lines (filename | number +- format)
         var foundGitDiff = false
-        for i in 1...5 {  // Check next 5 lines
+        for i in 1...10 {  // Check next 10 lines to catch summary section
           if index + i < lines.count {
-            let nextLine = lines[index + i].trimmingCharacters(in: .whitespaces)
-            if nextLine.hasPrefix("diff --git") || nextLine.hasPrefix("+++") {
+            let nextLine = lines[index + i]
+            let trimmedNextLine = nextLine.trimmingCharacters(in: .whitespaces)
+            if trimmedNextLine.hasPrefix("diff --git") || trimmedNextLine.hasPrefix("+++") {
+              foundGitDiff = true
+              break
+            }
+            // Check if it's a git summary line (filename | number +-)
+            if isGitSummaryLine(nextLine) {
               foundGitDiff = true
               break
             }
@@ -221,7 +229,9 @@ enum ContentSection {
 private func isGitSummaryLine(_ line: String) -> Bool {
   if isQuotedEmailLine(line) { return false }
   let trimmedLine = line.trimmingCharacters(in: .whitespaces)
-  let pattern = #"^(?!>(?:\s*>)*).* \| \d+ [+-]+$"#
+  // Match lines like: "filename | number +-+" or " filename | number +-+"
+  // Pattern: filename (with optional leading spaces) | number (with optional spaces) +-+
+  let pattern = #"^(?!>(?:\s*>)*).*? \| \s*\d+ \s*[+-]+$"#
   return (try? NSRegularExpression(pattern: pattern))?.firstMatch(
     in: trimmedLine, range: NSRange(trimmedLine.startIndex..., in: trimmedLine)) != nil
 }
@@ -252,11 +262,11 @@ struct GitDiffCard: View {
     VStack(alignment: .leading, spacing: 8) {
       HStack {
         Image(systemName: "doc.text")
-          .foregroundColor(.blue)
+          .foregroundColor(.secondary)
         Text("Git Diff")
           .font(.caption)
           .fontWeight(.medium)
-          .foregroundColor(.blue)
+          .foregroundColor(.secondary)
         Spacer()
 
         Button(action: {
@@ -269,7 +279,7 @@ struct GitDiffCard: View {
         }) {
           Image(systemName: "doc.on.doc")
             .font(.system(size: 12))
-            .foregroundColor(.blue)
+            .foregroundColor(.secondary)
         }
         .buttonStyle(.plain)
         .help("Copy Git Diff")
@@ -294,11 +304,11 @@ struct GitDiffCard: View {
       }
     }
     .padding()
-    .background(Color.blue.opacity(0.1))
+    .background(Color.secondary.opacity(0.05))
     .cornerRadius(8)
     .overlay(
       RoundedRectangle(cornerRadius: 8)
-        .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+        .stroke(Color.secondary.opacity(0.15), lineWidth: 1)
     )
   }
 

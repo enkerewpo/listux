@@ -1,5 +1,5 @@
-import SwiftUI
 import SwiftSoup
+import SwiftUI
 
 struct SearchView: View {
   @State private var searchQuery: String = ""
@@ -217,15 +217,15 @@ struct SearchView: View {
       .sheet(item: $selectedMessage) { message in
         NavigationStack {
           MessageDetailView(selectedMessage: message)
-            .navigationTitle("Message Detail")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-              ToolbarItem(placement: .navigationBarTrailing) {
-                Button("Done") {
-                  selectedMessage = nil
-                }
+          .navigationTitle("Message Detail")
+          .navigationBarTitleDisplayMode(.inline)
+          .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+              Button("Done") {
+                selectedMessage = nil
               }
             }
+          }
         }
       }
     #endif
@@ -279,7 +279,7 @@ struct SearchView: View {
       do {
         // Extract query from current search
         let query = searchQuery.trimmingCharacters(in: .whitespaces)
-        
+
         // Build full URL if needed
         var fullURL = url
         if !url.hasPrefix("http") {
