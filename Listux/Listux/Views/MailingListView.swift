@@ -248,15 +248,15 @@ struct MailingListMessageView: View {
         from: html, mailingList: mailingList, startingSeqId: startingSeqId)
 
       await MainActor.run {
-        // 替换消息内容而不是追加
+        // Replace messages instead of appending
         messages = result.messages
         self.nextURL = result.nextURL
         self.prevURL = result.prevURL
         self.latestURL = result.latestURL
         hasReachedEnd = result.nextURL == nil
         isLoadingMore = false
-        
-        // 更新页码
+
+        // Update page number
         currentPage += 1
 
         // Force UI update
@@ -276,7 +276,7 @@ struct MailingListMessageView: View {
       }
     }
   }
-  
+
   private func loadPrevMessages() async {
     print("MailingListMessageView: loadPrevMessages called")
     guard let prevURL = prevURL, !isLoadingMore else {
@@ -311,15 +311,15 @@ struct MailingListMessageView: View {
         from: html, mailingList: mailingList, startingSeqId: startingSeqId)
 
       await MainActor.run {
-        // 替换消息内容
+        // Replace messages
         messages = result.messages
         self.nextURL = result.nextURL
         self.prevURL = result.prevURL
         self.latestURL = result.latestURL
         hasReachedEnd = result.nextURL == nil
         isLoadingMore = false
-        
-        // 更新页码
+
+        // Update page number
         currentPage = max(1, currentPage - 1)
 
         // Force UI update
@@ -339,7 +339,7 @@ struct MailingListMessageView: View {
       }
     }
   }
-  
+
   private func loadLatestMessages() async {
     print("MailingListMessageView: loadLatestMessages called")
     guard let latestURL = latestURL, !isLoadingMore else {
@@ -379,8 +379,8 @@ struct MailingListMessageView: View {
         self.latestURL = result.latestURL
         hasReachedEnd = result.nextURL == nil
         isLoadingMore = false
-        
-        // 重置页码到第一页
+
+        // Reset page number to first page
         currentPage = 1
 
         // Force UI update
@@ -412,20 +412,20 @@ struct MailingListItemView: View {
 
   var body: some View {
     Button(action: onSelect) {
-      HStack(spacing: 8) {
+      HStack(spacing: 6) {
         // Pin indicator
         if isPinned {
           Image(systemName: "pin.fill")
-            .font(.system(size: 10))
+            .font(.system(size: 9))
             .foregroundColor(.orange)
         }
 
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 1) {
           Text(list.name)
-            .font(.system(size: 13, weight: .medium))
+            .font(.system(size: 12, weight: .medium))
             .lineLimit(1)
           Text(list.desc)
-            .font(.system(size: 11))
+            .font(.system(size: 10))
             .foregroundColor(.secondary)
             .lineLimit(1)
         }
@@ -435,15 +435,15 @@ struct MailingListItemView: View {
         // Pin toggle button
         Button(action: onPinToggle) {
           Image(systemName: isPinned ? "pin.fill" : "pin")
-            .font(.system(size: 11))
+            .font(.system(size: 10))
             .foregroundColor(isPinned ? .orange : .secondary)
             .scaleEffect(isPinned ? AnimationConstants.favoriteScale : 1.0)
         }
         .buttonStyle(.plain)
         .animation(AnimationConstants.springQuick, value: isPinned)
       }
-      .padding(.horizontal, 12)
-      .padding(.vertical, 6)
+      .padding(.horizontal, 8)
+      .padding(.vertical, 4)
       .background(
         RoundedRectangle(cornerRadius: 6)
           .fill(

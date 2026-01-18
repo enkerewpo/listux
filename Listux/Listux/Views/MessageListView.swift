@@ -21,14 +21,14 @@ struct MessageListView: View {
   @State private var favoriteMessageService = FavoriteMessageService.shared
   @State private var isLoadingMore: Bool = false
   @State private var lastMessageIdBeforeLoad: String? = nil
-  
-  // 分页状态
+
+  // Pagination state
   @State private var currentPage: Int = 1
   @State private var totalPages: Int = 1
   @State private var pageSize: Int = 50
   @State private var showPageInfo: Bool = false
-  
-  // 分页URL状态 - 从外部传入
+
+  // Pagination URL state - passed from external
   let nextURL: String?
   let prevURL: String?
   let latestURL: String?
@@ -66,7 +66,7 @@ struct MessageListView: View {
   }
 
   private var messageListContent: some View {
-    LazyVStack(spacing: 2) { // 减少间距以容纳两行标题
+    LazyVStack(spacing: 2) {  // Reduce spacing to accommodate two-line title
       // Show initial state message when no messages
       if messages.isEmpty && !isLoading {
         VStack(spacing: 12) {
@@ -125,19 +125,19 @@ struct MessageListView: View {
     )
 
     return VStack(spacing: 0) {
-      // 固定的分页工具栏
+      // Fixed pagination toolbar
       if !messages.isEmpty && showPageInfo {
         VStack(spacing: 0) {
           Divider()
-          
-          // 分页导航
+
+          // Pagination navigation
           HStack(spacing: 12) {
-            // 页码信息
+            // Page number info
             VStack(alignment: .leading, spacing: 1) {
               Text("Page \(pageNumber)")
                 .font(.system(size: 13, weight: .medium))
                 .foregroundColor(.primary)
-              
+
               if totalPages > 1 {
                 Text("of \(totalPages)")
                   .font(.system(size: 11))
@@ -145,25 +145,25 @@ struct MessageListView: View {
               }
             }
             .frame(minWidth: 60)
-            
+
             Spacer()
-            
-            // 消息计数
+
+            // Message count
             HStack(spacing: 4) {
               Text("\(messages.count)")
                 .font(.system(size: 13, weight: .medium))
                 .foregroundColor(.secondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
-              
+
               Image(systemName: "envelope")
                 .font(.system(size: 12))
                 .foregroundColor(.secondary)
             }
-            
-            // 分页控制按钮
+
+            // Pagination control buttons
             HStack(spacing: 8) {
-              // 向前导航按钮
+              // Previous navigation button
               if prevURL != nil && onLoadPrev != nil {
                 Button(action: {
                   loadPrevMessages()
@@ -189,13 +189,13 @@ struct MessageListView: View {
                 .disabled(isLoadingMore)
                 .opacity(isLoadingMore ? 0.5 : 1.0)
                 #if os(macOS)
-                .onHover { hovering in
-                  // macOS hover effect
-                }
+                  .onHover { hovering in
+                    // macOS hover effect
+                  }
                 #endif
               }
-              
-              // 跳转到最新页面按钮
+
+              // Jump to latest page button
               if latestURL != nil && onLoadLatest != nil {
                 Button(action: {
                   loadLatestMessages()
@@ -221,13 +221,13 @@ struct MessageListView: View {
                 .disabled(isLoadingMore)
                 .opacity(isLoadingMore ? 0.5 : 1.0)
                 #if os(macOS)
-                .onHover { hovering in
-                  // macOS hover effect
-                }
+                  .onHover { hovering in
+                    // macOS hover effect
+                  }
                 #endif
               }
-              
-              // 向后导航按钮
+
+              // Next navigation button
               if !hasReachedEnd {
                 Button(action: {
                   loadMoreMessages()
@@ -253,9 +253,9 @@ struct MessageListView: View {
                 .disabled(isLoadingMore)
                 .opacity(isLoadingMore ? 0.5 : 1.0)
                 #if os(macOS)
-                .onHover { hovering in
-                  // macOS hover effect
-                }
+                  .onHover { hovering in
+                    // macOS hover effect
+                  }
                 #endif
               }
             }
@@ -272,12 +272,12 @@ struct MessageListView: View {
             }
             .opacity(0.8)
           )
-          
+
           Divider()
         }
       }
 
-      // 消息列表内容
+      // Message list content
       ScrollViewReader { proxy in
         ScrollView {
           messageListContent
@@ -298,8 +298,8 @@ struct MessageListView: View {
               }
             }
             lastMessageIdBeforeLoad = nil
-            
-            // 更新分页信息
+
+            // Update pagination info
             updatePaginationInfo()
           } else if newCount > oldCount {
             print("MessageListView: New messages added but no lastMessageId recorded")
@@ -357,7 +357,7 @@ struct MessageListView: View {
       }
     }
   }
-  
+
   private func loadPrevMessages() {
     print("MessageListView: loadPrevMessages called")
     print("MessageListView: onLoadPrev is \(onLoadPrev != nil ? "available" : "nil")")
@@ -382,7 +382,7 @@ struct MessageListView: View {
       }
     }
   }
-  
+
   private func loadLatestMessages() {
     print("MessageListView: loadLatestMessages called")
     print("MessageListView: onLoadLatest is \(onLoadLatest != nil ? "available" : "nil")")
@@ -407,18 +407,20 @@ struct MessageListView: View {
       }
     }
   }
-  
+
   private func updatePaginationInfo() {
-    // 页码应该由外部传入或基于实际的页面导航
-    // 这里我们保持当前页码不变，除非有明确的页面变化
+    // Page number should be passed from external or based on actual page navigation
+    // Here we keep the current page number unchanged unless there's an explicit page change
     withAnimation(.easeInOut(duration: 0.3)) {
       showPageInfo = messages.count > 0
     }
-    
-    print("MessageListView: Updated pagination - Current: \(currentPage), Total: \(totalPages), Messages: \(messages.count)")
+
+    print(
+      "MessageListView: Updated pagination - Current: \(currentPage), Total: \(totalPages), Messages: \(messages.count)"
+    )
   }
-  
-  // 新增方法：更新页码（由外部调用）
+
+  // New method: Update page number (called from external)
   func updatePageNumber(_ newPage: Int, total: Int) {
     withAnimation(.easeInOut(duration: 0.3)) {
       currentPage = newPage
@@ -440,7 +442,7 @@ struct CompactMessageRowView: View {
   private var isFavorite: Bool {
     message.isFavorite
   }
-  
+
   private var displayTitle: String {
     if !message.content.isEmpty {
       if let parsedSubject = MessageParsingUtils.extractSubjectFromContent(message.content) {
@@ -456,19 +458,19 @@ struct CompactMessageRowView: View {
       Text("#\(message.seqId)")
         .font(.system(size: 11, weight: .semibold))
         .foregroundColor(.secondary)
-        .frame(width: 35, alignment: .leading) // 减少序号区域宽度
+        .frame(width: 35, alignment: .leading)  // Reduce sequence number area width
         .lineLimit(1)
 
-      // 标题 - 确保完整显示
+      // Title - ensure full display
       Text(displayTitle)
         .font(.system(size: 11))
-        .lineLimit(2) // 允许两行显示
+        .lineLimit(2)  // Allow two-line display
         .multilineTextAlignment(.leading)
         .foregroundColor(.primary)
         .opacity(isSelected ? 1.0 : 0.9)
-        .frame(maxWidth: .infinity, alignment: .leading) // 占用剩余空间
+        .frame(maxWidth: .infinity, alignment: .leading)  // Take remaining space
 
-      // 右边：工具按钮
+      // Right side: tool buttons
       HStack(spacing: 6) {
         if isFavorite {
           ForEach(message.tags, id: \.self) { tag in
@@ -492,12 +494,12 @@ struct CompactMessageRowView: View {
         }
         .buttonStyle(.plain)
         #if os(macOS)
-        .onHover { hovering in
-          // macOS hover effect for star button
-        }
+          .onHover { hovering in
+            // macOS hover effect for star button
+          }
         #endif
       }
-      .frame(minWidth: 50, alignment: .trailing) // 减少工具按钮区域宽度
+      .frame(minWidth: 50, alignment: .trailing)  // Reduce tool button area width
     }
     .padding(.vertical, 10)
     .padding(.horizontal, 14)

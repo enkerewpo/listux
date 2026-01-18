@@ -30,6 +30,7 @@ struct ContentView: View {
   @State private var isLoadingMoreMessages: Bool = false
   @State private var hasReachedEndMessages: Bool = false
   @State private var uiUpdateTrigger: Bool = false
+  @State private var rootMessages: [Message] = [] // Root messages for threaded view
   @Query private var preferences: [Preference]
 
   @State private var settingsManager = SettingsManager.shared
@@ -101,6 +102,7 @@ struct ContentView: View {
           // Sync messages with persistent storage
           favoriteMessageService.syncMessagesWithPersistentStorage(result.messages)
           messagePageLinks = (result.nextURL, result.prevURL, result.latestURL)
+          rootMessages = result.rootMessages
           isLoadingMessages = false
         }
       } catch {
@@ -149,14 +151,15 @@ struct ContentView: View {
         from: html, mailingList: list, startingSeqId: startingSeqId)
 
       await MainActor.run {
-        // 替换消息内容而不是追加
+        // Replace messages instead of appending
         list.updateOrderedMessages(result.messages)
-        print("ContentView: Replaced with \(result.messages.count) messages")
+        rootMessages = result.rootMessages
+        print("ContentView: Replaced with \(result.messages.count) messages, \(result.rootMessages.count) root messages")
         messagePageLinks = (result.nextURL, result.prevURL, result.latestURL)
         hasReachedEndMessages = result.nextURL == nil
         isLoadingMoreMessages = false
-        
-        // 更新页码
+
+        // Update page number
         currentPage += 1
 
         // Force UI update by triggering objectWillChange
@@ -178,7 +181,8 @@ struct ContentView: View {
   }
 
   private func loadPrevMessages() async {
-    guard let list = selectedList, let prevURL = messagePageLinks.prev, !isLoadingMoreMessages else {
+    guard let list = selectedList, let prevURL = messagePageLinks.prev, !isLoadingMoreMessages
+    else {
       print(
         "ContentView: Skipping loadPrevMessages - selectedList: \(selectedList != nil), prevURL: \(messagePageLinks.prev != nil), isLoadingMore: \(isLoadingMoreMessages)"
       )
@@ -204,18 +208,20 @@ struct ContentView: View {
       let html = try await NetworkService.shared.fetchURL(fullURL)
 
       // Calculate starting seqId based on existing messages
-      let startingSeqId = list.orderedMessages.isEmpty ? 0 : (list.orderedMessages.map { $0.seqId }.min() ?? 0) - 1
+      let startingSeqId =
+        list.orderedMessages.isEmpty ? 0 : (list.orderedMessages.map { $0.seqId }.min() ?? 0) - 1
       let result = Parser.parseMsgsFromListPage(
         from: html, mailingList: list, startingSeqId: startingSeqId)
 
       await MainActor.run {
-        // 替换消息内容
+        // Replace messages
         list.updateOrderedMessages(result.messages)
+        rootMessages = result.rootMessages
         messagePageLinks = (result.nextURL, result.prevURL, result.latestURL)
         hasReachedEndMessages = result.nextURL == nil
         isLoadingMoreMessages = false
-        
-        // 更新页码
+
+        // Update page number
         currentPage = max(1, currentPage - 1)
 
         // Force UI update
@@ -235,7 +241,8 @@ struct ContentView: View {
   }
 
   private func loadLatestMessages() async {
-    guard let list = selectedList, let latestURL = messagePageLinks.latest, !isLoadingMoreMessages else {
+    guard let list = selectedList, let latestURL = messagePageLinks.latest, !isLoadingMoreMessages
+    else {
       print(
         "ContentView: Skipping loadLatestMessages - selectedList: \(selectedList != nil), latestURL: \(messagePageLinks.latest != nil), isLoadingMore: \(isLoadingMoreMessages)"
       )
@@ -266,11 +273,12 @@ struct ContentView: View {
       await MainActor.run {
         // Replace all messages with latest ones
         list.updateOrderedMessages(result.messages)
+        rootMessages = result.rootMessages
         messagePageLinks = (result.nextURL, result.prevURL, result.latestURL)
         hasReachedEndMessages = result.nextURL == nil
         isLoadingMoreMessages = false
-        
-        // 重置页码到第一页
+
+        // Reset page number to first page
         currentPage = 1
 
         // Force UI update
@@ -292,6 +300,7 @@ struct ContentView: View {
   private func loadMessagesForList(_ list: MailingList) {
     isLoadingMessages = true
     currentPage = 1
+    rootMessages = []
     Task {
       do {
         let html = try await NetworkService.shared.fetchListPage(list.name)
@@ -302,9 +311,10 @@ struct ContentView: View {
           favoriteMessageService.syncMessagesWithPersistentStorage(result.messages)
           messagePageLinks = (result.nextURL, result.prevURL, result.latestURL)
           hasReachedEndMessages = result.nextURL == nil
+          rootMessages = result.rootMessages
           isLoadingMessages = false
           print(
-            "ContentView: Loaded \(result.messages.count) initial messages for \(list.name), hasReachedEnd: \(hasReachedEndMessages), nextURL: \(result.nextURL ?? "nil")"
+            "ContentView: Loaded \(result.messages.count) initial messages for \(list.name), \(result.rootMessages.count) root messages, hasReachedEnd: \(hasReachedEndMessages), nextURL: \(result.nextURL ?? "nil")"
           )
         }
       } catch {
@@ -381,10 +391,18 @@ struct ContentView: View {
                 .foregroundColor(.secondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+          } else if selectedSidebarTab == .search {
+            SearchView(selectedMessage: $selectedMessage)
+              .frame(
+                minWidth: 300,
+                idealWidth: WindowLayoutManager.shared.loadLayoutPreferences().messageList,
+                maxWidth: .infinity,
+                maxHeight: .infinity
+              )
           } else {
             Divider()
-            MessageListView(
-              messages: selectedList?.orderedMessages ?? [],
+            ThreadedMessageListView(
+              rootMessages: rootMessages,
               title: selectedList?.name ?? "",
               isLoading: isLoadingMessages,
               onLoadMore: {
@@ -428,6 +446,11 @@ struct ContentView: View {
       }
       .onChange(of: selectedTag) {
         selectedMessage = nil
+      }
+      .onChange(of: selectedSidebarTab) { _, newTab in
+        if newTab == .search {
+          selectedMessage = nil
+        }
       }
       .onChange(of: settingsManager.shouldOpenSettings) { _, newValue in
         if newValue {
@@ -498,6 +521,17 @@ struct ContentView: View {
           Text("Favorites")
         }
         .tag(SidebarTab.favorites)
+
+        NavigationStack {
+          SearchView(selectedMessage: $selectedMessage)
+            .navigationTitle("Search")
+            .navigationBarTitleDisplayMode(.large)
+        }
+        .tabItem {
+          Image(systemName: "magnifyingglass")
+          Text("Search")
+        }
+        .tag(SidebarTab.search)
 
         NavigationStack {
           SettingsView()

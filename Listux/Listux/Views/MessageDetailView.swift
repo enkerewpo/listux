@@ -34,7 +34,7 @@ struct MessageDetailView: View {
   private var isPatchEmail: Bool {
     true
   }
-  
+
   private var displayTitle: String {
     if let detail = parsedDetail, !detail.content.isEmpty {
       if let parsedSubject = MessageParsingUtils.extractSubjectFromContent(detail.content) {
@@ -45,7 +45,6 @@ struct MessageDetailView: View {
   }
 
   // Pagination removed; full content always rendered
-
 
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
@@ -104,7 +103,9 @@ struct MessageDetailView: View {
               TagAddButton(messageId: msg.messageId)
 
               if !msg.tags.isEmpty {
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 3), spacing: 4) {
+                LazyVGrid(
+                  columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 3), spacing: 4
+                ) {
                   ForEach(msg.tags, id: \.self) { tag in
                     HStack(spacing: 2) {
                       Text(tag)
@@ -144,7 +145,6 @@ struct MessageDetailView: View {
         #else
           .background(Color(UIColor.systemBackground))
         #endif
-
 
         // Content area with fixed controls and scrollable content
         GeometryReader { geometry in

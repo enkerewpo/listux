@@ -2,11 +2,12 @@ import SwiftData
 import SwiftUI
 
 enum SidebarTab: Hashable, CaseIterable {
-  case lists, favorites, settings
+  case lists, favorites, search, settings
   var systemImage: String {
     switch self {
     case .lists: return "tray.full"
     case .favorites: return "star"
+    case .search: return "magnifyingglass"
     case .settings: return "gear"
     }
   }
@@ -14,6 +15,7 @@ enum SidebarTab: Hashable, CaseIterable {
     switch self {
     case .lists: return "Lists"
     case .favorites: return "Favorites"
+    case .search: return "Search"
     case .settings: return "Settings"
     }
   }
@@ -132,6 +134,11 @@ struct SidebarView: View {
             listsContent
           case .favorites:
             favoritesContent
+          case .search:
+            // Search view will be shown in content area, not sidebar
+            Text("Search")
+              .foregroundColor(.secondary)
+              .frame(maxWidth: .infinity, maxHeight: .infinity)
           case .settings:
             SettingsView()
               .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -187,7 +194,7 @@ struct SidebarView: View {
         .padding(.horizontal, 12)
         .padding(.bottom, 8)
 
-        // Filtered list
+        // Filtered list - compact style
         List(selection: $selectedList) {
           ForEach(sortedLists, id: \.id) { list in
             MailingListItemView(
@@ -202,6 +209,7 @@ struct SidebarView: View {
                 preference.togglePinned(list)
               }
             )
+            .listRowInsets(EdgeInsets(top: 2, leading: 8, bottom: 2, trailing: 8))
           }
         }
         .listStyle(listStyle)

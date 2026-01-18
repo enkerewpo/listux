@@ -114,7 +114,9 @@ final class MailingList: Identifiable, Equatable, Hashable, ObservableObject {
 
   // Method to insert new messages at the beginning (for previous page navigation)
   func insertOrderedMessages(_ newMessages: [Message], at index: Int) {
-    print("Inserting ordered messages for '\(name)': \(newMessages.count) new messages at index \(index)")
+    print(
+      "Inserting ordered messages for '\(name)': \(newMessages.count) new messages at index \(index)"
+    )
     print("Current messages count: \(messages.count)")
     print("Current orderedMessageIds count: \(orderedMessageIds.count)")
 

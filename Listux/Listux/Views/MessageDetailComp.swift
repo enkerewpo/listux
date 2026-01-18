@@ -1,7 +1,6 @@
 import CryptoKit
 import SwiftUI
 
-
 struct MessageContentView: View {
   let content: String
 
@@ -485,10 +484,17 @@ struct EmailChipView: View {
         .font(.system(size: 10))
       let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
       if let email = email?.trimmingCharacters(in: .whitespacesAndNewlines), !email.isEmpty {
-        Text("\(trimmedName) <\(email)>")
-          .font(.caption2)
-          .lineLimit(1)
-          .minimumScaleFactor(0.8)
+        if trimmedName == email || trimmedName.isEmpty {
+          Text(email)
+            .font(.caption2)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+        } else {
+          Text("\(trimmedName) <\(email)>")
+            .font(.caption2)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+        }
       } else {
         Text(trimmedName)
           .font(.caption2)
@@ -580,9 +586,13 @@ private func splitTrailingName(from precedingText: String) -> (prefix: String, n
     let maxCount = min(3, components.count)
     for count in stride(from: maxCount, through: 1, by: -1) {
       let nameComponents = components.suffix(count)
-      let candidate = nameComponents.joined(separator: " ")
+      var candidate = nameComponents.joined(separator: " ")
+      // Remove surrounding quotes if present
+      if candidate.hasPrefix("\"") && candidate.hasSuffix("\"") && candidate.count >= 2 {
+        candidate = String(candidate.dropFirst().dropLast())
+      }
       if isValidAuthorName(candidate) {
-        let prefixLen = text.count - candidate.count
+        let prefixLen = text.count - nameComponents.joined(separator: " ").count
         let prefix = String(text.prefix(prefixLen))
         return (prefix: prefix, name: candidate)
       }
@@ -590,8 +600,12 @@ private func splitTrailingName(from precedingText: String) -> (prefix: String, n
     return nil
   }
   let afterColon = text.index(after: colonIndex)
-  let namePart = text[afterColon...].trimmingCharacters(in: .whitespaces)
+  var namePart = text[afterColon...].trimmingCharacters(in: .whitespaces)
   if namePart.isEmpty { return nil }
+  // Remove surrounding quotes if present
+  if namePart.hasPrefix("\"") && namePart.hasSuffix("\"") && namePart.count >= 2 {
+    namePart = String(namePart.dropFirst().dropLast())
+  }
   let prefix = String(text[..<afterColon]) + " "
   if isValidAuthorName(namePart) {
     return (prefix: prefix, name: namePart)
@@ -661,7 +675,7 @@ private func getQuoteLevel(_ line: String) -> Int {
   let trimmedLine = line.trimmingCharacters(in: .whitespaces)
   var level = 0
   var index = trimmedLine.startIndex
-  
+
   while index < trimmedLine.endIndex {
     if trimmedLine[index] == ">" {
       level += 1
@@ -674,7 +688,7 @@ private func getQuoteLevel(_ line: String) -> Int {
       break
     }
   }
-  
+
   return level
 }
 
@@ -699,7 +713,7 @@ private func splitQuotePrefix(_ line: String) -> (prefix: String, content: Strin
   let trimmedLine = line.trimmingCharacters(in: .whitespaces)
   var index = trimmedLine.startIndex
   var quotePrefix = ""
-  
+
   while index < trimmedLine.endIndex {
     if trimmedLine[index] == ">" {
       quotePrefix += ">"
@@ -713,7 +727,7 @@ private func splitQuotePrefix(_ line: String) -> (prefix: String, content: Strin
       break
     }
   }
-  
+
   let content = String(trimmedLine[index...])
   return (prefix: quotePrefix, content: content)
 }
@@ -724,7 +738,7 @@ struct TokenizedLineView: View {
   var body: some View {
     let quoteLevel = getQuoteLevel(line)
     let textColor = colorForQuoteLevel(quoteLevel)
-    
+
     LazyVStack(alignment: .leading, spacing: 2) {
       HStack(alignment: .firstTextBaseline, spacing: 0) {
         let parts = tokenizeLine(line)
@@ -744,7 +758,7 @@ struct TokenizedLineView: View {
               .padding(.horizontal, 2)
           }
         }
-        
+
         Spacer(minLength: 0)
       }
       .fixedSize(horizontal: false, vertical: true)
@@ -756,7 +770,12 @@ struct TokenizedLineView: View {
 // MARK: - Author info popover and Gravatar
 
 private func isValidAuthorName(_ name: String) -> Bool {
-  let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+  var trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+  if trimmed.isEmpty { return false }
+  // Remove surrounding quotes if present
+  if trimmed.hasPrefix("\"") && trimmed.hasSuffix("\"") && trimmed.count >= 2 {
+    trimmed = String(trimmed.dropFirst().dropLast())
+  }
   if trimmed.isEmpty { return false }
   let words = trimmed.split(separator: " ")
   if words.isEmpty || words.count > 3 { return false }
@@ -784,6 +803,7 @@ private func gravatarURL(for email: String, size: Int = 128) -> URL? {
 struct AuthorInfoPopupView: View {
   let name: String
   let email: String
+  @State private var showCopiedFeedback: Bool = false
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
@@ -811,11 +831,56 @@ struct AuthorInfoPopupView: View {
             .foregroundColor(.secondary)
         }
         VStack(alignment: .leading, spacing: 4) {
-          Text(name).font(.headline)
+          if name != email && !name.isEmpty {
+            Text(name).font(.headline)
+          }
           Text(email).font(.caption).foregroundColor(.secondary)
         }
         Spacer()
       }
+
+      Divider()
+
+      Button(action: {
+        print("AuthorInfoPopup: Copying email - name: '\(name)', email: '\(email)'")
+        #if os(macOS)
+          NSPasteboard.general.clearContents()
+          NSPasteboard.general.setString(email, forType: .string)
+        #else
+          UIPasteboard.general.string = email
+        #endif
+        showCopiedFeedback = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+          showCopiedFeedback = false
+        }
+      }) {
+        HStack(spacing: 6) {
+          Image(systemName: showCopiedFeedback ? "checkmark.circle.fill" : "doc.on.doc")
+            .font(.system(size: 14, weight: .medium))
+            .foregroundColor(showCopiedFeedback ? .green : .accentColor)
+          Text(showCopiedFeedback ? "Copied" : "Copy Email")
+            .font(.system(size: 13))
+            .foregroundColor(.primary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .background(
+          RoundedRectangle(cornerRadius: 8)
+            .fill(showCopiedFeedback ? Color.green.opacity(0.1) : Color.accentColor.opacity(0.1))
+        )
+        .overlay(
+          RoundedRectangle(cornerRadius: 8)
+            .stroke(
+              showCopiedFeedback ? Color.green.opacity(0.3) : Color.accentColor.opacity(0.3),
+              lineWidth: 1)
+        )
+      }
+      #if os(macOS)
+        .buttonStyle(PlainButtonStyle())
+        .focusable(false)
+      #else
+        .buttonStyle(.plain)
+      #endif
     }
   }
 }
