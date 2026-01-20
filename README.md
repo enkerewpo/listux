@@ -4,7 +4,7 @@ operating system development mailing list feed client, support MacOS and iOS.
 
 _work in progress_
 
-![image](images/image3.png)
+![image](images/image4.png)
 
 a https://lore.kernel.org/{channel} client for browsing linux kernel maillists topics and message rendering
 
